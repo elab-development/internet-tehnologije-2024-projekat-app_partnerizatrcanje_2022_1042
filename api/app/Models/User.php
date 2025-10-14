@@ -2,43 +2,54 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-    ];
+    // predložene role
+    public const ROLE_USER  = 'user';
+    public const ROLE_ADMIN = 'admin';
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
-     */
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+    protected $fillable = ['name','email','password','role'];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'role' => 'string',
     ];
+
+    /* ----------- helpers ----------- */
+    public function isAdmin(): bool     { return $this->role === self::ROLE_ADMIN; }  
+    public function isUser(): bool      { return $this->role === self::ROLE_USER; }
+
+    /* ----------- relacije ----------- */
+    public function runPlans(): HasMany
+    {
+        return $this->hasMany(RunPlan::class);
+    }
+
+    public function organizedEvents(): HasMany
+    {
+        return $this->hasMany(RunEvent::class, 'organizer_id');
+    }
+
+    public function participatingEvents(): BelongsToMany
+    {
+        return $this->belongsToMany(RunEvent::class, 'run_event_user')->withTimestamps();
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(Comment::class);
+    }
+
+    public function stats(): HasMany
+    {
+        return $this->hasMany(RunStat::class);
+    }
 }
