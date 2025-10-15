@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 
  use App\Http\Controllers\RunEventController;
 use App\Http\Controllers\RunPlanController;
+use App\Http\Controllers\RunStatController;
 use Illuminate\Support\Facades\Route;
 
 // javno: lista & detalj 
@@ -27,7 +28,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
  Route::apiResource('run-plans', RunPlanController::class);
 
- 
+ Route::apiResource('run-stats', RunStatController::class);
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
@@ -45,4 +46,28 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::middleware('role:user,admin')->group(function () {
        
     });
+});
+
+/* --- RunEvent pomoćne rute --- */
+Route::get   ('/run-events/{runEvent}/participants', [RunEventController::class, 'participants']);
+Route::get   ('/run-events/{runEvent}/summary',      [RunEventController::class, 'summary']);
+
+/* --- Komentari za event --- */
+Route::get   ('/run-events/{runEvent}/comments',  [CommentController::class, 'indexByEvent']);
+Route::post  ('/run-events/{runEvent}/comments',  [CommentController::class, 'store'])->middleware('auth:sanctum');
+Route::delete('/comments/{comment}',               [CommentController::class, 'destroy'])->middleware('auth:sanctum');
+
+/* --- Statistika korisnika (widgeti za profil/dashboard) --- */
+Route::get('/stats/user/{user}/summary', [RunStatController::class, 'summary']);
+Route::get('/stats/user/{user}/by-month', [RunStatController::class, 'byMonth']);
+
+/* --- Profil / korisnici --- */
+Route::middleware('auth:sanctum')->group(function () {
+    Route::put ('/me',            [UserController::class, 'update']);
+    Route::post('/me/password',   [UserController::class, 'changePassword']);
+});
+
+Route::middleware(['auth:sanctum','role:admin'])->group(function () {
+    Route::get  ('/users',             [UserController::class, 'index']);
+    Route::patch('/users/{user}/role', [UserController::class, 'updateRole']);
 });

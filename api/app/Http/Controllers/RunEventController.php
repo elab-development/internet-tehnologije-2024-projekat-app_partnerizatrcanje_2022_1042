@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\RunEventResource;
+use App\Http\Resources\UserResource;
 use App\Models\RunEvent;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -194,5 +195,30 @@ class RunEventController extends Controller
         if (!$user || (!$user->isAdmin() && $event->organizer_id !== $user->id)) {
             abort(403, 'Forbidden');
         }
+    }
+
+
+    public function participants(RunEvent $runEvent)
+    {
+        // GET /api/run-events/{runEvent}/participants
+        $users = $runEvent->participants()->paginate(20);
+        return UserResource::collection($users);
+    }
+
+    public function summary(RunEvent $runEvent)
+    {
+        // GET /api/run-events/{runEvent}/summary
+        $stats = $runEvent->stats(); // relacija RunEvent::stats()
+
+        $summary = [
+            'participants'   => $runEvent->participants()->count(),
+            'comments'       => $runEvent->comments()->count(),
+            'distance_avg'   => (float) $stats->avg('distance_km'),
+            'pace_avg_sec'   => (int)   $stats->avg('avg_pace_sec'),
+            'total_runs'     => (int)   $stats->count(),
+            'total_distance' => (float) $stats->sum('distance_km'),
+        ];
+
+        return response()->json($summary);
     }
 }
