@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use Illuminate\Http\Request; 
 
  use App\Http\Controllers\RunEventController;
+use App\Http\Controllers\RunPlanController;
 use Illuminate\Support\Facades\Route;
 
 // javno: lista & detalj 
@@ -24,7 +25,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/run-events/{runEvent}/cancel',  [RunEventController::class, 'cancel']);
 });
 
- 
+ Route::apiResource('run-plans', RunPlanController::class);
+
  
 
 Route::post('/register', [AuthController::class, 'register']);
