@@ -1,11 +1,13 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CommentController;
 use Illuminate\Http\Request; 
 
  use App\Http\Controllers\RunEventController;
 use App\Http\Controllers\RunPlanController;
 use App\Http\Controllers\RunStatController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
 // javno: lista & detalj 
