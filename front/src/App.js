@@ -6,6 +6,7 @@ import RunEvents from "./pages/RunEvents";
 import { Routes, Route, Navigate, Link, Outlet, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import Navbar from "./components/Navbar";
+import Breadcrumbs from "./components/Breadcrumbs";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -21,7 +22,7 @@ export default function App() {
       <ScrollToTop />
 
         <Navbar />
-
+          <Breadcrumbs></Breadcrumbs>
       <Routes>
         {/* Javno */}
         <Route path="/" element={<Home />} />
