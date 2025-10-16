@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import "./home.css";
-import "./register.css"; // reuse stilova za formu/kartice
+import "./register.css";
+import AuthHero from "../components/auth/AuthHero";
+import { Input } from "../components/ui/Input";
+import { PasswordInput } from "../components/ui/PasswordInput";
+import { Button } from "../components/ui/Button";
+import { Note } from "../components/ui/Note";
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
-  const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
@@ -32,12 +36,11 @@ export default function Login() {
     setMessage("");
 
     try {
-      // axios.defaults.baseURL = 'http://localhost:8000'; // po potrebi
       const res = await axios.post("/api/login", form);
       const { token, user } = res.data || {};
       if (token) localStorage.setItem("token", token);
       setMessage(`Dobrodošao/la nazad, ${user?.name || "trkaču"}!`);
-      // window.location.href = "/run-events"; // ili tvoj dashboard
+      // window.location.href = "/run-events";
     } catch (err) {
       if (err.response?.status === 422) {
         setErrors(err.response.data.errors || {});
@@ -53,72 +56,40 @@ export default function Login() {
 
   return (
     <main className="hp auth-page">
-      {/* HERO */}
-      <section className="hero">
-        <div className="hero__bg" />
-        <div className="hero__content">
-          <div className="brand reveal">
-            <span className="brand__tag">RUN • CONNECT • THRIVE</span>
-            <h1 className="brand__title">
-              Prijavi se i <span className="grad">nastavi gde si stao/la</span>
-            </h1>
-            <p className="brand__lead">
-              Pristupi planovima, događajima i ličnoj statistici — sve na jednom mestu.
-            </p>
-          </div>
-        </div>
-      </section>
+      <AuthHero
+        title={<>Prijavi se i <span className="grad">nastavi gde si stao/la</span></>}
+        lead="Pristupi planovima, događajima i ličnoj statistici — sve na jednom mestu."
+      />
 
-      {/* FORM */}
       <section className="section reveal">
         <div className="auth">
           <form className="card auth__card" onSubmit={submit} noValidate>
             <h2 className="grad auth__title">Prijava</h2>
 
-            {/* Email */}
-            <label className="fld">
-              <span>Email</span>
-              <input
-                name="email"
-                type="email"
-                placeholder="tvoj@email.com"
-                value={form.email}
-                onChange={onChange}
-                required
-              />
-              {errors.email && <small className="err">{errors.email[0]}</small>}
-            </label>
+            <Input
+              label="Email"
+              name="email"
+              type="email"
+              placeholder="tvoj@email.com"
+              value={form.email}
+              onChange={onChange}
+              error={errors.email?.[0]}
+              required
+            />
 
-            {/* Lozinka */}
-            <label className="fld">
-              <span>Lozinka</span>
-              <div className="fld__pass">
-                <input
-                  name="password"
-                  type={showPass ? "text" : "password"}
-                  placeholder="unesi lozinku"
-                  value={form.password}
-                  onChange={onChange}
-                  required
-                />
-                <button
-                  type="button"
-                  className="btn btn--tiny fld__toggle"
-                  onClick={() => setShowPass((v) => !v)}
-                  aria-label="Prikaži/sakrij lozinku"
-                >
-                  {showPass ? "Sakrij" : "Prikaži"}
-                </button>
-              </div>
-              {errors.password && <small className="err">{errors.password[0]}</small>}
-            </label>
+            <PasswordInput
+              name="password"
+              placeholder="unesi lozinku"
+              value={form.password}
+              onChange={onChange}
+              error={errors.password?.[0]}
+              required
+            />
 
-            {message && <div className="note">{message}</div>}
+            <Note>{message}</Note>
 
             <div className="auth__actions">
-              <button className="btn btn--primary" disabled={loading}>
-                {loading ? "Prijavljujem..." : "Prijavi se"}
-              </button>
+              <Button disabled={loading}>{loading ? "Prijavljujem..." : "Prijavi se"}</Button>
               <a href="/register" className="btn btn--ghost">Nemam nalog</a>
             </div>
 
@@ -127,7 +98,6 @@ export default function Login() {
             </p>
           </form>
 
-          {/* Info panel */}
           <aside className="auth__aside card">
             <h3>Vrati se u ritam</h3>
             <ul className="bullets">
@@ -137,24 +107,14 @@ export default function Login() {
             </ul>
 
             <div className="auth__highlights">
-              <div className="hl">
-                <strong>+10%</strong>
-                <span>više trčanja</span>
-              </div>
-              <div className="hl">
-                <strong>+15%</strong>
-                <span>brži pace</span>
-              </div>
-              <div className="hl">
-                <strong>100%</strong>
-                <span>podrška ekipe</span>
-              </div>
+              <div className="hl"><strong>+10%</strong><span>više trčanja</span></div>
+              <div className="hl"><strong>+15%</strong><span>brži pace</span></div>
+              <div className="hl"><strong>100%</strong><span>podrška ekipe</span></div>
             </div>
           </aside>
         </div>
       </section>
 
-      {/* FOOTER */}
       <footer className="footer">
         <div className="footer__grid">
           <div>
