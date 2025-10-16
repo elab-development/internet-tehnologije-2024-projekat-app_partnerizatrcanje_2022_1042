@@ -14,47 +14,48 @@ class RunEventController extends Controller
      * GET /api/run-events
      * Filtri: status, q (location), date_from, date_to, mine=organized|participating|all
      */
-    public function index(Request $request)
-    {
-        $user = $request->user();
+public function index(Request $request)
+{
+    $user = $request->user();
 
-        $q = RunEvent::query()
-            ->withCount(['participants','comments'])
-            ->with(['organizer']);
+    $q = RunEvent::query()
+        ->withCount(['participants','comments'])
+        ->with(['organizer']);
 
-        // full-text po lokaciji (prost like)
-        if ($request->filled('q')) {
-            $q->where('location', 'like', '%'.$request->string('q').'%');
-        }
-
-        // status filter
-        if ($request->filled('status')) {
-            $q->where('status', $request->string('status'));
-        }
-
-        // vremenski opseg
-        if ($request->filled('date_from')) {
-            $q->where('start_time', '>=', $request->date('date_from'));
-        }
-        if ($request->filled('date_to')) {
-            $q->where('start_time', '<=', $request->date('date_to'));
-        }
-
-        // mine: organized | participating | all
-        if ($request->string('mine') === 'organized' && $user) {
-            $q->where('organizer_id', $user->id);
-        } elseif ($request->string('mine') === 'participating' && $user) {
-            $q->whereHas('participants', fn($qq) => $qq->where('users.id', $user->id));
-        }
-
-        $q->orderBy('start_time');
-
-        return RunEventResource::collection(
-            $q->paginate($request->integer('per_page', 15))
-            ->appends($request->query())    
-        );
-
+    // pretraga po lokaciji
+    if ($request->filled('q')) {
+        $q->where('location', 'like', '%'.$request->query('q').'%');
     }
+
+    // status filter
+    if ($request->filled('status')) {
+        $q->where('status', $request->query('status'));
+    }
+
+    // vremenski opseg
+    if ($request->filled('date_from')) {
+        $q->where('start_time', '>=', $request->query('date_from')); // ili Carbon::parse(...)
+    }
+    if ($request->filled('date_to')) {
+        $q->where('start_time', '<=', $request->query('date_to'));
+    }
+
+    // mine: organized | participating
+    $mine = $request->query('mine');
+    if ($mine === 'organized' && $user) {
+        $q->where('organizer_id', $user->id);
+    } elseif ($mine === 'participating' && $user) {
+        $q->whereHas('participants', fn($qq) => $qq->where('users.id', $user->id));
+    }
+
+    $q->orderBy('start_time');
+
+    return RunEventResource::collection(
+        $q->paginate($request->integer('per_page', 15))
+          ->appends($request->query())
+    );
+}
+
 
     /**
      * POST /api/run-events
