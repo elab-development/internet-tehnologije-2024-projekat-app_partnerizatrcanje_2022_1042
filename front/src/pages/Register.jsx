@@ -10,7 +10,7 @@ import { Button } from "../components/ui/Button";
 import { Note } from "../components/ui/Note";
 
 export default function Register() {
-  const [form, setForm] = useState({ name: "", email: "", password: "", role: "user" });
+  const [form, setForm] = useState({ name: "Test", email: "test@gmail.com", password: "password", role: "user" });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
@@ -37,7 +37,7 @@ export default function Register() {
     setMessage("");
 
     try {
-      const res = await axios.post("/api/register", form);
+      const res = await axios.post("http://127.0.0.1:8000/api/register", form);
       const { token, user } = res.data || {};
       if (token) localStorage.setItem("token", token);
       setMessage(`Dobrodošao/la, ${user?.name || "trkaču"}!`);

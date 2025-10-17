@@ -14,47 +14,52 @@ class RunEventController extends Controller
      * GET /api/run-events
      * Filtri: status, q (location), date_from, date_to, mine=organized|participating|all
      */
-public function index(Request $request)
-{
-    $user = $request->user();
+        public function index(Request $request)
+        {
+            $user = $request->user();
 
-    $q = RunEvent::query()
-        ->withCount(['participants','comments'])
-        ->with(['organizer']);
+            // umesto $request->integer('per_page', 15)
+            $perPage = (int) $request->query('per_page', 15);
+            if ($perPage <= 0) $perPage = 15;
+            if ($perPage > 100) $perPage = 100;
 
-    // pretraga po lokaciji
-    if ($request->filled('q')) {
-        $q->where('location', 'like', '%'.$request->query('q').'%');
-    }
+            $q = RunEvent::query()
+                ->withCount(['participants','comments'])
+                ->with(['organizer']);
 
-    // status filter
-    if ($request->filled('status')) {
-        $q->where('status', $request->query('status'));
-    }
+            // pretraga po lokaciji
+            if ($request->filled('q')) {
+                $q->where('location', 'like', '%'.$request->query('q').'%');
+            }
 
-    // vremenski opseg
-    if ($request->filled('date_from')) {
-        $q->where('start_time', '>=', $request->query('date_from')); // ili Carbon::parse(...)
-    }
-    if ($request->filled('date_to')) {
-        $q->where('start_time', '<=', $request->query('date_to'));
-    }
+            // status filter
+            if ($request->filled('status')) {
+                $q->where('status', $request->query('status'));
+            }
 
-    // mine: organized | participating
-    $mine = $request->query('mine');
-    if ($mine === 'organized' && $user) {
-        $q->where('organizer_id', $user->id);
-    } elseif ($mine === 'participating' && $user) {
-        $q->whereHas('participants', fn($qq) => $qq->where('users.id', $user->id));
-    }
+            // vremenski opseg
+            if ($request->filled('date_from')) {
+                $q->where('start_time', '>=', $request->query('date_from'));
+            }
+            if ($request->filled('date_to')) {
+                $q->where('start_time', '<=', $request->query('date_to'));
+            }
 
-    $q->orderBy('start_time');
+            // mine: organized | participating
+            $mine = $request->query('mine');
+            if ($mine === 'organized' && $user) {
+                $q->where('organizer_id', $user->id);
+            } elseif ($mine === 'participating' && $user) {
+                $q->whereHas('participants', fn($qq) => $qq->where('users.id', $user->id));
+            }
 
-    return RunEventResource::collection(
-        $q->paginate($request->integer('per_page', 15))
-          ->appends($request->query())
-    );
-}
+            $q->orderBy('start_time');
+
+            return RunEventResource::collection(
+                $q->paginate($perPage)->appends($request->query())
+            );
+        }
+
 
 
     /**

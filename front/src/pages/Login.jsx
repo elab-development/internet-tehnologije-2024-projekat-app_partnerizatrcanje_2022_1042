@@ -7,22 +7,30 @@ import { Input } from "../components/ui/Input";
 import { PasswordInput } from "../components/ui/PasswordInput";
 import { Button } from "../components/ui/Button";
 import { Note } from "../components/ui/Note";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
-  const [form, setForm] = useState({ email: "", password: "" });
+  const navigate = useNavigate();
+  const [form, setForm] = useState({ email: "test@gmail.com", password: "password" });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
 
+  // animacije + auto-redirect ako je već ulogovan
   useEffect(() => {
+    if (localStorage.getItem("token")) {
+      navigate("/run-events", { replace: true });
+      return; // nema potrebe da se kači IO
+    }
     const els = document.querySelectorAll(".reveal");
     const io = new IntersectionObserver(
-      (entries) => entries.forEach((e) => e.isIntersecting && e.target.classList.add("in")),
+      (entries) =>
+        entries.forEach((e) => e.isIntersecting && e.target.classList.add("in")),
       { threshold: 0.12 }
     );
     els.forEach((el) => io.observe(el));
     return () => io.disconnect();
-  }, []);
+  }, [navigate]);
 
   const onChange = (e) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -36,11 +44,10 @@ export default function Login() {
     setMessage("");
 
     try {
-      const res = await axios.post("/api/login", form);
-      const { token, user } = res.data || {};
+      const res = await axios.post("http://127.0.0.1:8000/api/login", form);
+      const { token } = res.data || {};
       if (token) localStorage.setItem("token", token);
-      setMessage(`Dobrodošao/la nazad, ${user?.name || "trkaču"}!`);
-      // window.location.href = "/run-events";
+      navigate("/run-events", { replace: true });
     } catch (err) {
       if (err.response?.status === 422) {
         setErrors(err.response.data.errors || {});
@@ -57,7 +64,11 @@ export default function Login() {
   return (
     <main className="hp auth-page">
       <AuthHero
-        title={<>Prijavi se i <span className="grad">nastavi gde si stao/la</span></>}
+        title={
+          <>
+            Prijavi se i <span className="grad">nastavi gde si stao/la</span>
+          </>
+        }
         lead="Pristupi planovima, događajima i ličnoj statistici — sve na jednom mestu."
       />
 
@@ -86,15 +97,22 @@ export default function Login() {
               required
             />
 
-            <Note>{message}</Note>
+            {message ? <Note>{message}</Note> : null}
 
             <div className="auth__actions">
-              <Button disabled={loading}>{loading ? "Prijavljujem..." : "Prijavi se"}</Button>
-              <a href="/register" className="btn btn--ghost">Nemam nalog</a>
+              <Button disabled={loading}>
+                {loading ? "Prijavljujem..." : "Prijavi se"}
+              </Button>
+              <a href="/register" className="btn btn--ghost">
+                Nemam nalog
+              </a>
             </div>
 
-            <p className="auth__tos" style={{opacity:.8}}>
-              Zaboravljena lozinka? <a className="link" href="/forgot">Resetuj lozinku</a>
+            <p className="auth__tos" style={{ opacity: 0.8 }}>
+              Zaboravljena lozinka?{" "}
+              <a className="link" href="/forgot">
+                Resetuj lozinku
+              </a>
             </p>
           </form>
 
@@ -107,9 +125,18 @@ export default function Login() {
             </ul>
 
             <div className="auth__highlights">
-              <div className="hl"><strong>+10%</strong><span>više trčanja</span></div>
-              <div className="hl"><strong>+15%</strong><span>brži pace</span></div>
-              <div className="hl"><strong>100%</strong><span>podrška ekipe</span></div>
+              <div className="hl">
+                <strong>+10%</strong>
+                <span>više trčanja</span>
+              </div>
+              <div className="hl">
+                <strong>+15%</strong>
+                <span>brži pace</span>
+              </div>
+              <div className="hl">
+                <strong>100%</strong>
+                <span>podrška ekipe</span>
+              </div>
             </div>
           </aside>
         </div>
@@ -124,16 +151,26 @@ export default function Login() {
           <nav>
             <h5>Navigacija</h5>
             <ul>
-              <li><a href="/">Početna</a></li>
-              <li><a href="/run-events">Događaji</a></li>
-              <li><a href="/run-plans">Planovi</a></li>
+              <li>
+                <a href="/">Početna</a>
+              </li>
+              <li>
+                <a href="/run-events">Događaji</a>
+              </li>
+              <li>
+                <a href="/run-plans">Planovi</a>
+              </li>
             </ul>
           </nav>
           <div>
             <h5>Pomoć</h5>
             <ul>
-              <li><a href="/register">Registracija</a></li>
-              <li><a href="/forgot">Zaboravljena lozinka</a></li>
+              <li>
+                <a href="/register">Registracija</a>
+              </li>
+              <li>
+                <a href="/forgot">Zaboravljena lozinka</a>
+              </li>
             </ul>
           </div>
         </div>

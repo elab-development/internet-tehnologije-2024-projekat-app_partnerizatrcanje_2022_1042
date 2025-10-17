@@ -23,18 +23,18 @@ export default function App() {
 
         <Navbar />
           <Breadcrumbs></Breadcrumbs>
-      <Routes>
-        {/* Javno */}
-        <Route path="/" element={<Home />} />
-        <Route path="/run-events" element={<RunEvents />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+          <Routes>
+            {/* Javno */}
+            <Route path="/" element={<Home />} /> 
+            <Route path="/run-events" element={<RunEvents />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
 
 
-        {/* 404 fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </>
+            {/* 404 fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+      </>
   );
 }
