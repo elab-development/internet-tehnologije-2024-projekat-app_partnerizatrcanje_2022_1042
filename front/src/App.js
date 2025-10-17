@@ -7,6 +7,7 @@ import { Routes, Route, Navigate, Link, Outlet, useLocation } from "react-router
 import { useEffect } from "react";
 import Navbar from "./components/Navbar";
 import Breadcrumbs from "./components/Breadcrumbs";
+import RunEventDetail from "./pages/RunEventDetail";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -26,6 +27,7 @@ export default function App() {
           <Routes>
             {/* Javno */}
             <Route path="/" element={<Home />} /> 
+            <Route path="/run-events/:id" element={<RunEventDetail />} />
             <Route path="/run-events" element={<RunEvents />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />

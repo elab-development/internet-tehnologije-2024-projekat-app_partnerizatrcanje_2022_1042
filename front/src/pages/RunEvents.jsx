@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import api from "../api";
 import "./run-events.css"; // opciono
+import { Link } from "react-router-dom";
 
 export default function RunEventsTable() {
   const [items, setItems] = useState([]);
@@ -98,7 +99,7 @@ export default function RunEventsTable() {
                       <td style={td}>{e.participants_count ?? 0}</td>
                       <td style={td}>{e.comments_count ?? 0}</td>
                       <td style={td}>
-                        <a className="link" href={`/run-events/${e.id}`}>Detalj</a>
+                       <Link className="link" to={`/run-events/${e.id}`}>Detalj</Link>
                       </td>
                     </tr>
                   ))
@@ -132,4 +133,6 @@ export default function RunEventsTable() {
   );
 }
 
- 
+// jednostavni stilovi (možeš slobodno izbaciti ako imaš svoje klase)
+const th = { textAlign: "left", padding: "10px 12px", borderBottom: "1px solid #2a2a2a" };
+const td = { padding: "8px 12px", borderBottom: "1px solid #1b1b1b" };
