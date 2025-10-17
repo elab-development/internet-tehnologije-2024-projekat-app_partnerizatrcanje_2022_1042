@@ -1,0 +1,109 @@
+/* ===== RunEventDetail ===== */
+:root {
+  --bg: #07120d;
+  --panel: #0c1913;
+  --panel-2: #0f1d16;
+  --border: #163325;
+  --border-2: #1e4a35;
+  --txt: #e6f3ed;
+  --muted: #93a39c;
+  --accent: #22d3a1;
+  --accent2: #22d3a1;
+  --accent3: #34d399;
+}
+
+/* Glavni kontejner strane */
+.redetail {
+  padding: 24px;
+}
+
+/* “Nazad” link */
+.redetail__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+.redetail__back:hover { text-decoration: underline; }
+
+/* Naslov */
+.redetail__title {
+  margin: 12px 0 20px;
+  font-size: clamp(24px, 3vw, 36px);
+  font-weight: 800;
+  line-height: 1.2;
+  background: linear-gradient(90deg, var(--accent2), #baf3cf);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Kartica sa detaljima */
+.redetail__card {
+  padding: 18px 20px;
+  background:
+    radial-gradient(1100px 420px at 10% -15%, rgba(34,211,161,.08), transparent),
+    linear-gradient(180deg, rgba(15,26,19,.65), rgba(15,26,19,.35));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,0.03);
+}
+
+/* Grid za redove (Labela • Vrednost) */
+.redetail__rows {
+  display: grid;
+  gap: 12px;
+}
+.redetail__row {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: 12px;
+  align-items: baseline;
+}
+.redetail__label {
+  color: var(--muted);
+  font-weight: 700;
+  letter-spacing: .2px;
+}
+.redetail__value {
+  color: var(--txt);
+}
+
+/* Donja meta linija: učesnici, komentari */
+.redetail__meta {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+  color: var(--muted);
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.redetail__meta i {
+  font-style: normal;
+  opacity: .9;
+}
+
+/* Status badge (ako želiš pilulu umesto plain teksta) */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(15,26,19,.55), rgba(15,26,19,.35));
+}
+.status--planned   { color: #9be6c9; border-color: #215a42; }
+.status--completed { color: #b8f487; border-color: #2b5f25; }
+.status--cancelled { color: #ffb4b4; border-color: #6b2a2a; }
+
+/* Responsive */
+@media (max-width: 720px) {
+  .redetail { padding: 16px; }
+  .redetail__row { grid-template-columns: 1fr; }
+}

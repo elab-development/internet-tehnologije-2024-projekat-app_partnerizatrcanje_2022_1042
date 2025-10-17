@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../api";
-
+import "./run-event-detail.css";
 export default function RunEventDetail() {
   const { id } = useParams();
   const [ev, setEv] = useState(null);
@@ -39,28 +39,53 @@ export default function RunEventDetail() {
   };
 
   return (
-    <main className="hp" style={{ padding: 24 }}>
-      <Link to="/run-events" className="link">← Nazad na listu</Link>
-      <h2 style={{ margin: "12px 0 16px" }}>Detalji događaja</h2>
+    <main className="hp redetail">
+  <Link to="/run-events" className="redetail__back">← Nazad na listu</Link>
+  <h2 className="redetail__title">Detalji događaja</h2>
 
-      {loading && <div className="note">Učitavanje...</div>}
-      {err && <div className="note">{err}</div>}
-      {!loading && !err && !ev && <div className="note">Događaj nije pronađen.</div>}
+  {loading && <div className="note">Učitavanje...</div>}
+  {err && <div className="note">{err}</div>}
 
-      {ev && (
-        <div className="note" style={{ display: "grid", gap: 8 }}>
-          <div><strong>Datum/Vreme:</strong> {fmtDate(ev.start_time)}</div>
-          <div><strong>Lokacija:</strong> {ev.location || "—"}</div>
-          <div><strong>Distanca (km):</strong> {ev.distance_km ?? "—"}</div>
-          <div><strong>Status:</strong> {ev.status || "planned"}</div>
-          <div><strong>Organizator:</strong> {ev.organizer?.name || "—"}</div>
-          <div style={{ opacity: .8 }}>
-             Učesnici: {ev.participants_count ?? ev.participants?.length ?? 0}
-            {" • "}
-             Komentari: {ev.comments_count ?? ev.comments?.length ?? 0}
+  {ev && (
+    <section className="redetail__card">
+      <div className="redetail__rows">
+        <div className="redetail__row">
+          <div className="redetail__label">Datum/Vreme:</div>
+          <div className="redetail__value">{fmtDate(ev.start_time)}</div>
+        </div>
+
+        <div className="redetail__row">
+          <div className="redetail__label">Lokacija:</div>
+          <div className="redetail__value">{ev.location || "—"}</div>
+        </div>
+
+        <div className="redetail__row">
+          <div className="redetail__label">Distanca (km):</div>
+          <div className="redetail__value">{ev.distance_km ?? "—"}</div>
+        </div>
+
+        <div className="redetail__row">
+          <div className="redetail__label">Status:</div>
+          <div className="redetail__value">
+            <span className={`status-badge status--${ev.status || "planned"}`}>
+              {ev.status || "planned"}
+            </span>
           </div>
         </div>
-      )}
-    </main>
+
+        <div className="redetail__row">
+          <div className="redetail__label">Organizator:</div>
+          <div className="redetail__value">{ev.organizer?.name || "—"}</div>
+        </div>
+      </div>
+
+      <div className="redetail__meta">
+        <i>  Učesnici: {ev.participants_count ?? ev.participants?.length ?? 0}</i>
+        <i>  Komentari: {ev.comments_count ?? ev.comments?.length ?? 0}</i>
+      </div>
+    </section>
+  )}
+</main>
+
   );
 }

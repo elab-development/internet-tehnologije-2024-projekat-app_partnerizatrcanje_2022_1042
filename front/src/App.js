@@ -8,6 +8,9 @@ import { useEffect } from "react";
 import Navbar from "./components/Navbar";
 import Breadcrumbs from "./components/Breadcrumbs";
 import RunEventDetail from "./pages/RunEventDetail";
+import RunPlans from "./pages/RunPlans";
+import RunPlanUpsert from "./pages/RunPlanUpsert";
+import RunPlanDetail from "./pages/RunPlanDetail";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -32,6 +35,11 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
 
+
+            <Route path="/run-plans" element={<RunPlans />} />
+            <Route path="/run-plans/new" element={<RunPlanUpsert />} />
+            <Route path="/run-plans/:id" element={<RunPlanDetail />} />
+            <Route path="/run-plans/:id/edit" element={<RunPlanUpsert />} />
 
 
             {/* 404 fallback */}
