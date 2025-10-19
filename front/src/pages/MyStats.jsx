@@ -1,8 +1,8 @@
- 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+// src/pages/MyStats.jsx
+import React, { useEffect, useMemo, useState } from "react";
 import api from "../api";
-import "./run-plans.css";
- 
+import "./my-stats.css";
+
 import { MapContainer, TileLayer, Polyline, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -12,254 +12,233 @@ import iconShadow from "leaflet/dist/images/marker-shadow.png";
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconRetinaUrl: icon2x, iconUrl: icon1x, shadowUrl: iconShadow });
 
-function getUserId() {
-  const raw = localStorage.getItem("user_id");
-  return raw ? parseInt(raw, 10) : undefined;
-}
-
-function fmtDate(iso) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, {
-    year: "numeric", month: "short", day: "2-digit",
-    hour: "2-digit", minute: "2-digit"
-  });
-}
-function fmtPace(sec) {
-  if (!Number.isFinite(sec)) return "—";
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return `${m}:${String(s).padStart(2, "0")}/km`;
-}
-
-export default function MyStats() {
-  const userId = getUserId();
+function useMe() {
   const [me, setMe] = useState(null);
-
-  // summary i po mesecima
-  const [summary, setSummary] = useState(null);
-  const [byMonth, setByMonth] = useState([]);
-
-  // list (moji zapisi)
-  const [items, setItems] = useState([]);
-  const [meta, setMeta] = useState(null);
-  const [page, setPage] = useState(1);
-  const perPage = 10;
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-
-  // selektovani zapis -> mapa
-  const [sel, setSel] = useState(null);
-  const mapRef = useRef(null);
-
-  // poređenje
-  const [globalAvg, setGlobalAvg] = useState(null);
-  const [leaderKm, setLeaderKm] = useState([]);     // top po km
-  const [leaderPace, setLeaderPace] = useState([]); // top po prosečnom pace-u (najmanji)
-
-  // učitaj /api/me (nije striktno, ali korisno za ime)
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    let alive = true;
+    if (!token) { setMe(null); return; }
     (async () => {
       try {
         const res = await api.get("/api/me");
-        const user = res?.data?.data ?? res?.data ?? res;
-        setMe(user || null);
-        if (user?.id) localStorage.setItem("user_id", String(user.id));
+        const u = res?.data?.data ?? res?.data ?? res;
+        if (alive) setMe(u || null);
+        if (u?.id) localStorage.setItem("user_id", String(u.id));
       } catch {
         setMe(null);
       }
     })();
-  }, []);
-
-  // summary + by-month (zahtevaju userId)
-  useEffect(() => {
-    if (!userId) return;
-    let alive = true;
-    (async () => {
-      try {
-        const sRes = await api.get(`/api/stats/user/${userId}/summary`);
-        const bRes = await api.get(`/api/stats/user/${userId}/by-month`);
-        const sBody = sRes?.data ?? {};
-        const bBody = bRes?.data ?? [];
-        if (!alive) return;
-        setSummary(sBody);
-        setByMonth(Array.isArray(bBody) ? bBody : []);
-      } catch {/* ignore */}
-    })();
     return () => { alive = false; };
-  }, [userId]);
+  }, []);
+  return me;
+}
 
-  // moji zapisi (paginirano)
+const fmtPace = (sec) => {
+  if (!Number.isFinite(sec)) return "—";
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${String(s).padStart(2, "0")}/km`;
+};
+
+export default function MyStats() {
+  const me = useMe();
+  const resolvedUserId = me?.id ?? (localStorage.getItem("user_id") ? parseInt(localStorage.getItem("user_id"),10) : undefined);
+
+  // hero summary
+  const [sum, setSum] = useState(null);
+  const [sumErr, setSumErr] = useState("");
+
+  // global averages for comparison
+  const [glob, setGlob] = useState(null);
+  const [globErr, setGlobErr] = useState("");
+
+  // list (pagination)
+  const [rows, setRows] = useState([]);
+  const [meta, setMeta] = useState(null);
+  const [page, setPage] = useState(1);
+  const [listErr, setListErr] = useState("");
+
+  // selected stat to draw route
+  const [sel, setSel] = useState(null);
+
+  // load summary + global
   useEffect(() => {
-    if (!userId) return;
-    const ctrl = new AbortController();
+    if (!resolvedUserId) return;
+    let alive = true;
+
     (async () => {
-      setLoading(true);
-      setErr("");
       try {
-        const res = await api.get("/api/run-stats", {
-          params: { user_id: userId, page, per_page: perPage },
-          signal: ctrl.signal,
-        });
-        const body = res?.data ?? res;
-        setItems(Array.isArray(body?.data) ? body.data : []);
-        setMeta(body?.meta ?? null);
+        setSumErr("");
+        const r1 = await api.get(`/api/stats/user/${resolvedUserId}/summary`);
+        if (alive) setSum(r1?.data ?? r1);
       } catch (e) {
-        if (e.name !== "CanceledError" && e.name !== "AbortError") {
-          setErr("Ne mogu da učitam tvoje statistike.");
-        }
-      } finally {
-        setLoading(false);
+        if (alive) setSumErr("Ne mogu da učitam tvoje statistike.");
+      }
+
+      try {
+        setGlobErr("");
+        // globalni prosek i rang liste — ako nemaš poseban endpoint, izvuci iz /api/run-stats (prvih 50) i izračunaj
+        const gRes = await api.get("/api/run-stats", { params: { per_page: 50 } });
+        const list = gRes?.data?.data ?? [];
+        const avgPace = list.length ? Math.round(list.filter(x => Number.isFinite(x.avg_pace_sec)).reduce((a,b)=>a+b.avg_pace_sec,0)/list.length) : null;
+        const avgDist = list.length ? (list.filter(x=>Number.isFinite(x.distance_km)).reduce((a,b)=>a+b.distance_km,0)/list.length) : null;
+
+        // top 5 ukupni km po korisniku (grub prikaz iz lokalnih 50 redova)
+        const byUser = {};
+        list.forEach(x => {
+          const key = x.user?.id || x.user_id;
+          if (!key) return;
+          byUser[key] = byUser[key] || { name: x.user?.name || `#${key}`, km: 0 };
+          byUser[key].km += Number(x.distance_km) || 0;
+        });
+        const topKm = Object.values(byUser).sort((a,b)=>b.km - a.km).slice(0,5);
+
+        // top 5 najbolji pace (manji je bolji)
+        const byUserP = {};
+        list.forEach(x => {
+          const key = x.user?.id || x.user_id;
+          if (!key || !Number.isFinite(x.avg_pace_sec) || x.avg_pace_sec<=0) return;
+          byUserP[key] = byUserP[key] || { name: x.user?.name || `#${key}`, sec: x.avg_pace_sec, n: 0 };
+          byUserP[key].sec = Math.min(byUserP[key].sec, x.avg_pace_sec);
+        });
+        const topPace = Object.values(byUserP).sort((a,b)=>a.sec - b.sec).slice(0,5);
+
+        setGlob({
+          avgPaceSec: avgPace,
+          avgDistKm: avgDist,
+          topKm,
+          topPace,
+        });
+      } catch {
+        setGlobErr("Ne mogu da učitam globalne podatke.");
       }
     })();
-    return () => ctrl.abort();
-  }, [userId, page]);
 
-  // globalna poređenja (2 dodatne bek rute ispod)
+    return () => { alive = false; };
+  }, [resolvedUserId]);
+
+  // load my list (paginated)
   useEffect(() => {
+    if (!resolvedUserId) return;
     let alive = true;
     (async () => {
       try {
-        const g = await api.get("/api/stats/global-averages");
-        const kmTop = await api.get("/api/stats/leaderboard/total-distance?limit=5");
-        const paceTop = await api.get("/api/stats/leaderboard/avg-pace?limit=5");
+        setListErr("");
+        const res = await api.get("/api/run-stats", { params: { user_id: resolvedUserId, page, per_page: 10 }});
+        const body = res?.data ?? res;
         if (!alive) return;
-        setGlobalAvg(g?.data ?? null);
-        setLeaderKm(Array.isArray(kmTop?.data) ? kmTop.data : []);
-        setLeaderPace(Array.isArray(paceTop?.data) ? paceTop.data : []);
-      } catch {/* ignore */}
+        setRows(Array.isArray(body?.data) ? body.data : []);
+        setMeta(body?.meta ?? null);
+      } catch {
+        if (alive) setListErr("Ne mogu da učitam tvoje statistike.");
+      }
     })();
     return () => { alive = false; };
-  }, []);
+  }, [resolvedUserId, page]);
 
-  // centriraj mapu na track selektovanog zapisa
-  useEffect(() => {
-    if (!sel?.gps_track || !Array.isArray(sel.gps_track) || sel.gps_track.length === 0) return;
-    try {
-      const pts = sel.gps_track.map(p => [p[0], p[1]]);
-      if (mapRef.current && pts.length > 0) {
-        const bounds = L.latLngBounds(pts);
-        mapRef.current.fitBounds(bounds, { padding: [20, 20] });
-      }
-    } catch {/* ignore */}
+  const myAvgPace = useMemo(() => sum?.avg_pace_sec ?? null, [sum]);
+  const myAvgDist = useMemo(() => {
+    if (!sum?.total_runs || !sum?.total_distance) return null;
+    return sum.total_runs > 0 ? (sum.total_distance / sum.total_runs) : null;
+  }, [sum]);
+
+  const betterThan = useMemo(() => {
+    if (!myAvgPace || !glob?.avgPaceSec) return null;
+    // manji sec/km je bolji
+    const delta = glob.avgPaceSec - myAvgPace;
+    return Math.round((Math.max(0, delta) / glob.avgPaceSec) * 100);
+  }, [myAvgPace, glob]);
+
+  const worseDist = useMemo(() => {
+    if (!myAvgDist || !glob?.avgDistKm) return null;
+    const delta = myAvgDist - glob.avgDistKm;
+    return Math.round((Math.max(0, -delta) / glob.avgDistKm) * 100);
+  }, [myAvgDist, glob]);
+
+  const mapRoute = useMemo(() => {
+    if (!sel?.gps_track) return null;
+    // očekuje se niz [lat,lng,timestamp?]
+    const pts = sel.gps_track
+      .map(p => Array.isArray(p) && p.length >= 2 ? [Number(p[0]), Number(p[1])] : null)
+      .filter(Boolean);
+    return pts.length ? pts : null;
   }, [sel]);
 
-  const myAvgPace = summary?.avg_pace_sec ?? null;
-  const myAvgDist = useMemo(() => {
-    // prosečna distanca po zapisu iz moje stranice (ili iz summary: total_distance/total_runs)
-    if (summary?.total_runs > 0 && Number.isFinite(summary?.total_distance)) {
-      return summary.total_distance / summary.total_runs;
-    }
-    return null;
-  }, [summary]);
-
-  const vsGlobalPace = useMemo(() => {
-    if (!Number.isFinite(myAvgPace) || !Number.isFinite(globalAvg?.avg_pace_sec)) return null;
-    // manji je bolji, prikaži % razliku
-    return Math.round(((globalAvg.avg_pace_sec - myAvgPace) / globalAvg.avg_pace_sec) * 100);
-  }, [myAvgPace, globalAvg]);
-
-  const vsGlobalDist = useMemo(() => {
-    if (!Number.isFinite(myAvgDist) || !Number.isFinite(globalAvg?.avg_distance_km)) return null;
-    return Math.round(((myAvgDist - globalAvg.avg_distance_km) / globalAvg.avg_distance_km) * 100);
-  }, [myAvgDist, globalAvg]);
+  const mapCenter = mapRoute?.[0] ?? [44.8125, 20.4612]; // BG fallback
 
   return (
-    <main className="hp rp" style={{ padding: 24 }}>
-      <h2 className="rp__title">Moja statistika {me?.name ? `— ${me.name}` : ""}</h2>
-
-      {!userId && (
-        <div className="note">Niste ulogovani.</div>
-      )}
-
-      {/* SUMARY */}
-      {userId && (
-        <section className="rp-card" style={{ marginBottom: 16 }}>
-          <div className="rp-rows" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-            <div className="rp-row">
-              <div className="rp-label">Ukupno trčanja</div>
-              <div className="rp-value"><b>{summary?.total_runs ?? 0}</b></div>
-            </div>
-            <div className="rp-row">
-              <div className="rp-label">Ukupno km</div>
-              <div className="rp-value"><b>{(summary?.total_distance ?? 0).toFixed(2)}</b></div>
-            </div>
-            <div className="rp-row">
-              <div className="rp-label">Prosečan pace</div>
-              <div className="rp-value"><b>{fmtPace(summary?.avg_pace_sec)}</b></div>
-            </div>
-            <div className="rp-row">
-              <div className="rp-label">Poslednje trčanje</div>
-              <div className="rp-value">{summary?.last_run_at ? fmtDate(summary.last_run_at) : "—"}</div>
-            </div>
-          </div>
-        </section>
-      )}
+    <main className="hp ms">
+      {/* HERO */}
+      <div className="ms__hero">
+        <div className="ms__card">
+          <div style={{ opacity:.8 }}>Ukupno trčanja</div>
+          <div style={{ fontSize:28, fontWeight:700 }}>{sum?.total_runs ?? "—"}</div>
+        </div>
+        <div className="ms__card">
+          <div style={{ opacity:.8 }}>Ukupno km</div>
+          <div style={{ fontSize:28, fontWeight:700 }}>{Number(sum?.total_distance||0).toFixed(2)}</div>
+        </div>
+        <div className="ms__card">
+          <div style={{ opacity:.8 }}>Prosečan pace</div>
+          <div style={{ fontSize:28, fontWeight:700 }}>{fmtPace(myAvgPace)}</div>
+        </div>
+        <div className="ms__card">
+          <div style={{ opacity:.8 }}>Poslednje trčanje</div>
+          <div style={{ fontSize:16 }}>{sum?.last_run_at || "—"}</div>
+        </div>
+      </div>
 
       {/* POREĐENJE */}
-      {userId && (
-        <section className="rp-card" style={{ marginBottom: 16 }}>
-          <h3 style={{ marginTop: 0 }}>Poređenje sa ostalima</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-            <div className="rp-row">
-              <div className="rp-label">Moj prosečan pace</div>
-              <div className="rp-value">{fmtPace(myAvgPace)}</div>
-              <small style={{ opacity: .8 }}>Globalni prosek: {fmtPace(globalAvg?.avg_pace_sec)}</small>
-              {vsGlobalPace != null && (
-                <div style={{ opacity: .9, marginTop: 4 }}>
-                  {vsGlobalPace >= 0 ? "Bolji" : "Sporiji"} od proseka za <b>{Math.abs(vsGlobalPace)}%</b>
-                </div>
-              )}
-            </div>
-            <div className="rp-row">
-              <div className="rp-label">Moja prosečna distanca</div>
-              <div className="rp-value">{Number.isFinite(myAvgDist) ? myAvgDist.toFixed(2) + " km" : "—"}</div>
-              <small style={{ opacity: .8 }}>Globalni prosek: {Number.isFinite(globalAvg?.avg_distance_km) ? globalAvg.avg_distance_km.toFixed(2) + " km" : "—"}</small>
-              {vsGlobalDist != null && (
-                <div style={{ opacity: .9, marginTop: 4 }}>
-                  {vsGlobalDist >= 0 ? "Veća" : "Manja"} od proseka za <b>{Math.abs(vsGlobalDist)}%</b>
-                </div>
-              )}
-            </div>
+      <section className="ms__compare">
+        <h3 style={{ marginTop: 0 }}>Poređenje sa ostalima</h3>
+        {globErr && <div className="note">{globErr}</div>}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+          <div className="ms__card">
+            <div style={{ fontWeight:600, marginBottom:6 }}>Moj prosečan pace</div>
+            <div style={{ fontSize:22, fontWeight:700 }}>{fmtPace(myAvgPace)}</div>
+            <div style={{ opacity:.8, marginTop:4 }}>Globalni prosek: {fmtPace(glob?.avgPaceSec)}</div>
+            {betterThan!=null && <div style={{ marginTop:8, fontWeight:700 }}>Bolji od proseka za {betterThan}%</div>}
+
+            <div style={{ marginTop:16, fontWeight:600 }}>Top 5 — ukupni kilometri</div>
+            <ol style={{ marginTop:8 }}>
+              {glob?.topKm?.map((u,i)=>(
+                <li key={i}>
+                  {u.name} — <b>{u.km.toFixed(2)} km</b>
+                </li>
+              )) ?? <div style={{ opacity:.7 }}>Nema podataka.</div>}
+            </ol>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
-            <div>
-              <h4 style={{ margin: "4px 0" }}>Top 5 — ukupni kilometri</h4>
-              <ol style={{ margin: 0, paddingLeft: 18 }}>
-                {leaderKm.map((u) => (
-                  <li key={u.user_id} style={{ marginBottom: 4 }}>
-                    {u.name ?? `#${u.user_id}`} — <b>{Number(u.total_km).toFixed(2)} km</b>
-                  </li>
-                ))}
-                {leaderKm.length === 0 && <div style={{ opacity: .7 }}>Nema podataka.</div>}
-              </ol>
+          <div className="ms__card">
+            <div style={{ fontWeight:600, marginBottom:6 }}>Moja prosečna distanca</div>
+            <div style={{ fontSize:22, fontWeight:700 }}>{myAvgDist ? `${myAvgDist.toFixed(2)} km` : "—"}</div>
+            <div style={{ opacity:.8, marginTop:4 }}>
+              Globalni prosek: {glob?.avgDistKm ? `${glob.avgDistKm.toFixed(2)} km` : "—"}
             </div>
-            <div>
-              <h4 style={{ margin: "4px 0" }}>Top 5 — najbolji avg pace</h4>
-              <ol style={{ margin: 0, paddingLeft: 18 }}>
-                {leaderPace.map((u) => (
-                  <li key={u.user_id} style={{ marginBottom: 4 }}>
-                    {u.name ?? `#${u.user_id}`} — <b>{fmtPace(u.avg_pace_sec)}</b>
-                  </li>
-                ))}
-                {leaderPace.length === 0 && <div style={{ opacity: .7 }}>Nema podataka.</div>}
-              </ol>
-            </div>
+            {worseDist!=null && <div style={{ marginTop:8, fontWeight:700 }}>Manja od proseka za {worseDist}%</div>}
+
+            <div style={{ marginTop:16, fontWeight:600 }}>Top 5 — najbolji avg pace</div>
+            <ol style={{ marginTop:8 }}>
+              {glob?.topPace?.map((u,i)=>(
+                <li key={i}>
+                  {u.name} — <b>{fmtPace(u.sec)}</b>
+                </li>
+              )) ?? <div style={{ opacity:.7 }}>Nema podataka.</div>}
+            </ol>
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
       {/* LISTA + MAPA */}
-      <section className="rp-card">
-        <h3 style={{ marginTop: 0 }}>Moji zapisi</h3>
+      <section className="ms__bottom">
+        <div className="ms__table">
+          <div style={{ padding:"12px 16px", borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+            <h3 style={{ margin:0 }}>Moji zapisi</h3>
+            {listErr && <div className="note" style={{ marginTop:8 }}>{listErr}</div>}
+          </div>
 
-        {loading && <div className="note">Učitavanje...</div>}
-        {err && <div className="note">{err}</div>}
-
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 1fr) minmax(300px, 1fr)", gap: 16 }}>
-          <div style={{ overflowX: "auto" }}>
-            <table className="re-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+          <div style={{ overflowX:"auto" }}>
+            <table style={{ width:"100%", borderCollapse:"collapse" }}>
               <thead>
                 <tr>
                   <th style={th}>#</th>
@@ -270,78 +249,52 @@ export default function MyStats() {
                 </tr>
               </thead>
               <tbody>
-                {items.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} style={{ padding: 16, textAlign: "center", opacity: .8 }}>Nema zapisa.</td>
-                  </tr>
-                ) : items.map((r, i) => (
-                  <tr
-                    key={r.id}
-                    onClick={() => setSel(r)}
-                    style={{ cursor: "pointer", background: sel?.id === r.id ? "#1a1a1a" : undefined }}
-                  >
-                    <td style={td}>{(meta?.from ?? 1) + i}</td>
-                    <td style={td}>{fmtDate(r.recorded_at)}</td>
-                    <td style={td}>{Number(r.distance_km ?? 0).toFixed(2)}</td>
+                {rows.length === 0 ? (
+                  <tr><td colSpan={5} style={{ padding:16, textAlign:"center", opacity:.8 }}>Nema zapisa.</td></tr>
+                ) : rows.map((r,i)=>(
+                  <tr key={r.id} className="rowHover" onClick={()=>setSel(r)} style={{ cursor:"pointer" }}>
+                    <td style={td}>{(meta?.from ?? 1)+i}</td>
+                    <td style={td}>{new Date(r.recorded_at).toLocaleString()}</td>
+                    <td style={td}>{Number(r.distance_km||0).toFixed(2)}</td>
                     <td style={td}>{r.duration_sec ?? "—"}</td>
                     <td style={td}>{fmtPace(r.avg_pace_sec)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-
-            {/* paginacija */}
-            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12 }}>
-              <button
-                className="btn btn--tiny"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={!meta || meta.current_page <= 1}
-              >
-                ← Prethodna
-              </button>
-              <span style={{ opacity: 0.8 }}>
-                Strana {meta?.current_page ?? page} / {meta?.last_page ?? 1}
-              </span>
-              <button
-                className="btn btn--tiny"
-                onClick={() => setPage((p) => Math.min(meta.last_page, p + 1))}
-                disabled={!meta || meta.current_page >= meta.last_page}
-              >
-                Sledeća →
-              </button>
-            </div>
           </div>
 
-          {/* MAPA prikaza selektovanog zapisa */}
-          <div style={{ minHeight: 320, borderRadius: 12, overflow: "hidden" }}>
-            <MapContainer
-              center={{ lat: 44.8125, lng: 20.4612 }}
-              zoom={12}
-              style={{ height: 360, width: "100%" }}
-              whenCreated={(map) => (mapRef.current = map)}
-            >
+          {meta && (
+            <div style={{ display:"flex", gap:8, alignItems:"center", padding:12 }}>
+              <button className="btn btn--tiny" disabled={meta.current_page<=1}
+                onClick={()=>setPage(p=>Math.max(1,p-1))}>← Prethodna</button>
+              <span style={{ opacity:.8 }}>Strana {meta.current_page} / {meta.last_page}</span>
+              <button className="btn btn--tiny" disabled={meta.current_page>=meta.last_page}
+                onClick={()=>setPage(p=>Math.min(meta.last_page,p+1))}>Sledeća →</button>
+            </div>
+          )}
+        </div>
+
+        <div className="ms__mapCard">
+          <div style={{ height: 420 }}>
+            <MapContainer center={mapCenter} zoom={13} style={{ height:"100%", width:"100%" }}>
               <TileLayer
                 attribution='&copy; OpenStreetMap'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              {sel?.gps_track && Array.isArray(sel.gps_track) && sel.gps_track.length > 0 && (
+              {mapRoute ? (
                 <>
-                  <Polyline positions={sel.gps_track.map(p => [p[0], p[1]])} />
-                  <Marker position={[sel.gps_track[0][0], sel.gps_track[0][1]]}><Popup>Start</Popup></Marker>
-                  <Marker position={[sel.gps_track[sel.gps_track.length - 1][0], sel.gps_track[sel.gps_track.length - 1][1]]}><Popup>Kraj</Popup></Marker>
-                </>
-              )}
-            </MapContainer>
-
-            <div style={{ marginTop: 8, opacity: .85 }}>
-              {sel ? (
-                <>
-                  <b>Izabrano:</b> {fmtDate(sel.recorded_at)} · {Number(sel.distance_km ?? 0).toFixed(2)} km · {fmtPace(sel.avg_pace_sec)}
+                  <Polyline positions={mapRoute} />
+                  <Marker position={mapRoute[0]}><Popup>Start</Popup></Marker>
+                  <Marker position={mapRoute[mapRoute.length-1]}><Popup>Kraj</Popup></Marker>
                 </>
               ) : (
-                <>Klikni zapis u tabeli za prikaz rute.</>
+                <Marker position={mapCenter}><Popup>Beograd</Popup></Marker>
               )}
-            </div>
+            </MapContainer>
+          </div>
+          <div style={{ padding:8, textAlign:"center", opacity:.85 }}>
+            {sel ? "Prikazana je ruta iz izabranog zapisa." : "Klikni zapis u tabeli za prikaz rute."}
           </div>
         </div>
       </section>
@@ -349,5 +302,5 @@ export default function MyStats() {
   );
 }
 
-const th = { textAlign: "left", padding: "10px 12px", borderBottom: "1px solid #2a2a2a", position: "sticky", top: 0, background: "#111" };
-const td = { padding: "8px 12px", borderBottom: "1px solid #1b1b1b" };
+const th = { textAlign:"left", padding:"10px 12px", borderBottom:"1px solid rgba(255,255,255,0.06)" };
+const td = { padding:"8px 12px", borderBottom:"1px solid rgba(255,255,255,0.06)" };

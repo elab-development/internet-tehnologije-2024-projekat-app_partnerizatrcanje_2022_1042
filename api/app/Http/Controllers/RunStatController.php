@@ -10,31 +10,37 @@ use Illuminate\Support\Facades\DB;
 
 class RunStatController extends Controller
 {
-    // GET /api/run-stats?user_id=&run_event_id=&date_from=&date_to=&per_page=
-    public function index(Request $request)
-    {
-        $q = RunStat::query()->with(['user','event']);
+        // GET /api/run-stats?user_id=&run_event_id=&date_from=&date_to=&per_page=
+  
 
-        if ($request->filled('user_id')) {
-            $q->where('user_id', (int)$request->query('user_id'));
-        }
-        if ($request->filled('run_event_id')) {
-            $q->where('run_event_id', (int)$request->query('run_event_id'));
-        }
-        if ($request->filled('date_from')) {
-            $q->where('recorded_at', '>=', $request->date('date_from'));
-        }
-        if ($request->filled('date_to')) {
-            $q->where('recorded_at', '<=', $request->date('date_to'));
-        }
+        public function index(Request $request)
+        {
+            $q = RunStat::query()->with(['user','event']);
 
-        $q->orderByDesc('recorded_at');
+            if ($request->filled('user_id')) {
+                $q->where('user_id', (int)$request->query('user_id'));
+            }
+            if ($request->filled('run_event_id')) {
+                $q->where('run_event_id', (int)$request->query('run_event_id'));
+            }
+            if ($request->filled('date_from')) {
+                $q->where('recorded_at', '>=', $request->date('date_from'));
+            }
+            if ($request->filled('date_to')) {
+                $q->where('recorded_at', '<=', $request->date('date_to'));
+            }
 
-        return RunStatResource::collection(
-            $q->paginate($request->integer('per_page', 15))
-              ->appends($request->query())
-        );
-    }
+            $q->orderByDesc('recorded_at');
+
+            // ✅ zamena za $request->integer(...)
+            $perPage = (int) $request->query('per_page', 15);
+            if ($perPage <= 0) $perPage = 15;
+            if ($perPage > 100) $perPage = 100;
+
+            return RunStatResource::collection(
+                $q->paginate($perPage)->appends($request->query())
+            );
+        }
 
     // POST /api/run-stats
     public function store(Request $request)
