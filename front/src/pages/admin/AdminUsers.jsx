@@ -1,77 +1,31 @@
  
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo } from "react";
 import { Link } from "react-router-dom";
-import api from "../../api"; 
 import "./admin-users.css";
 
- 
 import { FiSearch, FiRefreshCw, FiShield, FiUser, FiAlertTriangle } from "react-icons/fi";
 import AdminSidebar from "./AdminSidebar";
 
+import useMe from "../../hooks/useMe";
+import useUsers from "../../hooks/useUsers";
+import api from "../../api";
+
 export default function AdminUsers() {
-  const [me, setMe] = useState(null);
+  // ko sam ja
+  const { me } = useMe();
 
-  const [items, setItems] = useState([]);
-  const [meta, setMeta] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
-
-  const [q, setQ] = useState("");
-  const [page, setPage] = useState(1);
-  const perPage = 20;
-
-  const abortRef = useRef(null);
-
-  // ko sam ja (da ne dozvolimo samospuštanje role)
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const r = await api.get("/api/me");
-        const u = r?.data?.data ?? r?.data ?? r;
-        if (alive) setMe(u || null);
-      } catch {
-        if (alive) setMe(null);
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
-
-  // dohvat korisnika
-  useEffect(() => {
-    if (abortRef.current) abortRef.current.abort();
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-
-    (async () => {
-      setLoading(true);
-      setErr("");
-      try {
-        const res = await api.get("/api/users", {
-          params: { q: q || undefined, page, per_page: perPage },
-          signal: ctrl.signal,
-        });
-        const body = res?.data ?? res;
-        setItems(Array.isArray(body?.data) ? body.data : []);
-        setMeta(body?.meta ?? null);
-      } catch (e) {
-        if (e.name !== "CanceledError" && e.name !== "AbortError") {
-          setErr("Ne mogu da učitam korisnike.");
-        }
-      } finally {
-        setLoading(false);
-      }
-    })();
-
-    return () => ctrl.abort();
-  }, [q, page]);
+  // lista korisnika (custom hook)
+  const {
+    items, setItems, meta, loading, error,
+    q, setQ, page, setPage, perPage, setPerPage,
+    refresh,
+  } = useUsers({ perPageDefault: 20 });
 
   const canChangeRole = useMemo(() => me?.role === "admin", [me]);
 
-  function resetAndReload() {
-    setQ("");
-    setPage(1);
-  }
+  const total   = meta?.total ?? items.length;
+  const pageFrom = meta?.from ?? (items.length ? (page - 1) * perPage + 1 : 0);
+  const pageTo   = meta?.to   ?? (items.length ? pageFrom + items.length - 1 : 0);
 
   async function changeRole(user, role) {
     if (!canChangeRole) return;
@@ -81,7 +35,7 @@ export default function AdminUsers() {
     }
     // optimistički update
     const prev = items;
-    setItems((list) => list.map((u) => (u.id === user.id ? { ...u, role } : u)));
+    setItems(list => list.map(u => (u.id === user.id ? { ...u, role } : u)));
     try {
       await api.patch(`/api/users/${user.id}/role`, { role });
     } catch (e) {
@@ -91,9 +45,11 @@ export default function AdminUsers() {
     }
   }
 
-  const total = meta?.total ?? items.length;
-  const pageFrom = meta?.from ?? (items.length ? (page - 1) * perPage + 1 : 0);
-  const pageTo = meta?.to ?? (items.length ? pageFrom + items.length - 1 : 0);
+  function resetFilters() {
+    setQ("");
+    setPage(1);
+    refresh();
+  }
 
   return (
     <div className="admin-wrap">
@@ -129,16 +85,28 @@ export default function AdminUsers() {
               onChange={(e) => { setPage(1); setQ(e.target.value); }}
             />
           </div>
-          <button className="btn btn--tiny" onClick={resetAndReload}>
-            <FiRefreshCw style={{ verticalAlign: "-2px", marginRight: 6 }} />
-            Reset
-          </button>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <select
+              className="sel"
+              value={perPage}
+              onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
+              title="Zapisa po strani"
+            >
+              {[10, 20, 50, 100].map(n => <option key={n} value={n}>{n}/page</option>)}
+            </select>
+
+            <button className="btn btn--tiny" onClick={resetFilters}>
+              <FiRefreshCw style={{ verticalAlign: "-2px", marginRight: 6 }} />
+              Reset
+            </button>
+          </div>
         </div>
 
         {loading && <div className="note">Učitavanje…</div>}
-        {err && <div className="note">{err}</div>}
+        {error && <div className="note">{error}</div>}
 
-        {!loading && !err && (
+        {!loading && !error && (
           <>
             <div className="list-meta">
               Prikaz: <b>{pageFrom}-{pageTo}</b> od <b>{total}</b>
@@ -180,7 +148,6 @@ export default function AdminUsers() {
                         </td>
                         <td className="td-actions">
                           <Link to={`/mojestatistike?user_id=${u.id}`} className="link">Stat</Link>
-                          {/* po želji: dodaj još akcija (lock, reset pass UI, profil) */}
                         </td>
                       </tr>
                     ))
@@ -194,7 +161,7 @@ export default function AdminUsers() {
               <div className="pager">
                 <button
                   className="btn btn--tiny"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={meta.current_page <= 1}
                 >
                   ← Prethodna
@@ -204,7 +171,7 @@ export default function AdminUsers() {
                 </span>
                 <button
                   className="btn btn--tiny"
-                  onClick={() => setPage((p) => Math.min(meta.last_page, p + 1))}
+                  onClick={() => setPage(p => Math.min(meta.last_page, p + 1))}
                   disabled={meta.current_page >= meta.last_page}
                 >
                   Sledeća →
@@ -212,7 +179,6 @@ export default function AdminUsers() {
               </div>
             )}
 
-            {/* Napomena o sopstvenoj ulozi */}
             <div className="hint">
               <FiAlertTriangle style={{ marginRight: 6 }} />
               Ne možete menjati sopstvenu ulogu (bezbednosno ograničenje).
