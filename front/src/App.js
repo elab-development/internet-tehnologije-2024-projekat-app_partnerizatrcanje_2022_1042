@@ -15,6 +15,7 @@ import NearbyMap from "./pages/NearbyMap";
 import MyStats from "./pages/MyStats";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
+import AdminStats from "./pages/admin/AdminStats";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -52,6 +53,7 @@ export default function App() {
 
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/users" element={<AdminUsers />} />
+          <Route path="/admin/stats" element={<AdminStats />} />
 
             {/* 404 fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
