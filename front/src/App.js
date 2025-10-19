@@ -11,6 +11,7 @@ import RunEventDetail from "./pages/RunEventDetail";
 import RunPlans from "./pages/RunPlans";
 import RunPlanUpsert from "./pages/RunPlanUpsert";
 import RunPlanDetail from "./pages/RunPlanDetail";
+import NearbyMap from "./pages/NearbyMap";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -40,6 +41,10 @@ export default function App() {
             <Route path="/run-plans/new" element={<RunPlanUpsert />} />
             <Route path="/run-plans/:id" element={<RunPlanDetail />} />
             <Route path="/run-plans/:id/edit" element={<RunPlanUpsert />} />
+
+
+            <Route path="/nearby" element={<NearbyMap />} />
+
 
 
             {/* 404 fallback */}

@@ -73,3 +73,9 @@ Route::middleware(['auth:sanctum','role:admin'])->group(function () {
     Route::get  ('/users',             [UserController::class, 'index']);
     Route::patch('/users/{user}/role', [UserController::class, 'updateRole']);
 });
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/me/location',  [AuthController::class, 'updateLocation']);
+    Route::get('/me/location',   [AuthController::class, 'myLocation'] ?? fn() => abort(404));  
+    Route::get('/nearby-users',  [AuthController::class, 'nearbyUsers']);  
+});

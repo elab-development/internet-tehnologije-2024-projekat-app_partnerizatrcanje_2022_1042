@@ -68,4 +68,6 @@ class UserController extends Controller
 
         return new UserResource($user);
     }
+ 
+
 }

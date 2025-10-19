@@ -11,7 +11,7 @@ import { useNavigate } from "react-router-dom";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: "test@gmail.com", password: "password" });
+  const [form, setForm] = useState({ email: "mila@example.com", password: "password" });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");

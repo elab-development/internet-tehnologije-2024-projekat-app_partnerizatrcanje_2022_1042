@@ -13,15 +13,24 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable,HasApiTokens;
 
-    // predložene role
+ 
     public const ROLE_USER  = 'user';
     public const ROLE_ADMIN = 'admin';
 
-    protected $fillable = ['name','email','password','role'];
+    protected $fillable = [
+        'name','email','password','role',
+       
+        'last_lat','last_lng','last_accuracy_m','last_seen_at',
+    ];
 
-    protected $casts = [
+   protected $casts = [
         'email_verified_at' => 'datetime',
         'role' => 'string',
+        
+        'last_lat' => 'float',
+        'last_lng' => 'float',
+        'last_accuracy_m' => 'integer',
+        'last_seen_at' => 'datetime',
     ];
 
     /* ----------- helpers ----------- */
