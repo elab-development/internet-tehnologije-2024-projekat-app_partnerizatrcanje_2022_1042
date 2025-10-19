@@ -6,14 +6,16 @@ export default function Navbar({
   brand = { label: "RunTogether", to: "/" },
   links = [
     { to: "/", label: "Početna" },
-    { to: "/run-events", label: "Događaji" },
+  
   ],
   guestLinks = [
     { to: "/login", label: "Prijava" },
     { to: "/register", label: "Registracija" },
   ],
   authedLinks = [
-    // ovde možeš dodati npr. { to: "/run-plans", label: "Planovi" }
+     { to: "/run-events", label: "Događaji" },
+     { to: "/nearby", label: "Mapa" },
+
   ],
   onLogout,              // opciono: async () => {}
   showLogout = true,     // prikaz "Odjava" ako postoji token
