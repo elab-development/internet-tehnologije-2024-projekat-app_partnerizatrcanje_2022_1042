@@ -12,6 +12,7 @@ import RunPlans from "./pages/RunPlans";
 import RunPlanUpsert from "./pages/RunPlanUpsert";
 import RunPlanDetail from "./pages/RunPlanDetail";
 import NearbyMap from "./pages/NearbyMap";
+import MyStats from "./pages/MyStats";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -44,6 +45,7 @@ export default function App() {
 
 
             <Route path="/nearby" element={<NearbyMap />} />
+            <Route path="/mojestatistike" element={<MyStats />} />
 
 
 

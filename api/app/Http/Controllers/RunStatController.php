@@ -6,6 +6,7 @@ use App\Http\Resources\RunStatResource;
 use App\Models\RunStat;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class RunStatController extends Controller
 {
@@ -129,4 +130,69 @@ class RunStatController extends Controller
 
         return response()->json($rows);
     }
+    /** GET /api/stats/global-averages */
+        public function globalAverages()
+        {
+            return response()->json([
+                'avg_pace_sec'     => (int)  RunStat::avg('avg_pace_sec'),
+                'avg_distance_km'  => (float) RunStat::avg('distance_km'),
+                'total_distance'   => (float) RunStat::sum('distance_km'),
+                'total_runs'       => (int)  RunStat::count(),
+            ]);
+        }
+
+        /** GET /api/stats/leaderboard/total-distance?limit=5 */
+        public function leaderboardTotalDistance(Request $request)
+        {
+            $limit = (int) $request->query('limit', 5);
+            if ($limit < 1) $limit = 5; if ($limit > 50) $limit = 50;
+
+            $rows = RunStat::query()
+                ->select('user_id', DB::raw('SUM(distance_km) AS total_km'))
+                ->groupBy('user_id')
+                ->orderByDesc('total_km')
+                ->limit($limit)
+                ->get();
+
+            // pridruži imena
+            $userNames = DB::table('users')->whereIn('id', $rows->pluck('user_id'))->pluck('name','id');
+            $data = $rows->map(function ($r) use ($userNames) {
+                return [
+                    'user_id'  => $r->user_id,
+                    'name'     => $userNames[$r->user_id] ?? null,
+                    'total_km' => (float) $r->total_km,
+                ];
+            });
+
+            return response()->json($data);
+        }
+
+        /** GET /api/stats/leaderboard/avg-pace?limit=5
+         *  rangira korisnike po najboljem (najmanjem) avg pace-u
+         *  koristi prosečan pace po korisniku (prosek svih njegovih zapisa)
+         */
+        public function leaderboardAvgPace(Request $request)
+        {
+            $limit = (int) $request->query('limit', 5);
+            if ($limit < 1) $limit = 5; if ($limit > 50) $limit = 50;
+
+            $rows = RunStat::query()
+                ->select('user_id', DB::raw('AVG(avg_pace_sec) AS avg_pace_sec'))
+                ->whereNotNull('avg_pace_sec')
+                ->groupBy('user_id')
+                ->orderBy('avg_pace_sec', 'asc') // manji = bolji
+                ->limit($limit)
+                ->get();
+
+            $userNames = DB::table('users')->whereIn('id', $rows->pluck('user_id'))->pluck('name','id');
+            $data = $rows->map(function ($r) use ($userNames) {
+                return [
+                    'user_id'      => $r->user_id,
+                    'name'         => $userNames[$r->user_id] ?? null,
+                    'avg_pace_sec' => (int) $r->avg_pace_sec,
+                ];
+            });
+
+            return response()->json($data);
+        }
 }

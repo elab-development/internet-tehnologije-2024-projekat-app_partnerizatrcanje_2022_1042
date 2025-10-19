@@ -79,3 +79,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me/location',   [AuthController::class, 'myLocation'] ?? fn() => abort(404));  
     Route::get('/nearby-users',  [AuthController::class, 'nearbyUsers']);  
 });
+
+Route::get('/stats/global-averages', [RunStatController::class, 'globalAverages']);
+Route::get('/stats/leaderboard/total-distance', [RunStatController::class, 'leaderboardTotalDistance']);
+Route::get('/stats/leaderboard/avg-pace', [RunStatController::class, 'leaderboardAvgPace']);
