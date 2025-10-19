@@ -1,18 +1,37 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import api from "../api";
 import "./run-plans.css";
+
+// Leaflet mapa
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import icon2x from "leaflet/dist/images/marker-icon-2x.png";
+import icon1x from "leaflet/dist/images/marker-icon.png";
+import iconShadow from "leaflet/dist/images/marker-shadow.png";
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({ iconRetinaUrl: icon2x, iconUrl: icon1x, shadowUrl: iconShadow });
 
 function getCurrentUserId() {
   const raw = localStorage.getItem("user_id");
   return raw ? parseInt(raw, 10) : undefined;
 }
 
+/* ----------------- komponenta za hvatanje klika na mapi ----------------- */
+function ClickPicker({ onPick }) {
+  useMapEvents({
+    click(e) {
+      onPick({ lat: e.latlng.lat, lng: e.latlng.lng });
+    }
+  });
+  return null;
+}
+
 export default function RunPlanUpsert() {
   const { id } = useParams(); // ako ima id -> edit mode
   const isEdit = Boolean(id);
   const navigate = useNavigate();
-  const userId = getCurrentUserId();
 
   const [form, setForm] = useState({
     start_time: "",
@@ -28,6 +47,17 @@ export default function RunPlanUpsert() {
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
   const [fv, setFv] = useState({}); // field errors (422)
+
+  const mapRef = useRef(null); // da možemo da centriramo mapu
+
+  // Inicijalni centar mape: Beograd ili postojeće koordinate (edit)
+  const initialCenter = useMemo(() => {
+    if (form.meet_lat && form.meet_lng) {
+      const lat = Number(form.meet_lat), lng = Number(form.meet_lng);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+    }
+    return { lat: 44.8125, lng: 20.4612 }; // BG
+  }, [form.meet_lat, form.meet_lng]);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -65,6 +95,30 @@ export default function RunPlanUpsert() {
     setFv((fv) => ({ ...fv, [name]: undefined }));
   };
 
+  // klik na mapu -> upiši koordinate u formu
+  const pickOnMap = ({ lat, lng }) => {
+    setForm(f => ({ ...f, meet_lat: lat.toFixed(6), meet_lng: lng.toFixed(6) }));
+  };
+
+  // "Moja lokacija" – koristi browser geolocation
+  const useMyLocation = async () => {
+    if (!("geolocation" in navigator)) {
+      alert("Geolokacija nije dostupna u pregledaču.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        setForm(f => ({ ...f, meet_lat: lat.toFixed(6), meet_lng: lng.toFixed(6) }));
+        if (mapRef.current) {
+          mapRef.current.setView([lat, lng], 15);
+        }
+      },
+      () => alert("Neuspešno čitanje lokacije."),
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
+    );
+  };
+
   const onSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -72,16 +126,22 @@ export default function RunPlanUpsert() {
     setMsg("");
     setFv({});
 
+    // pripremi payload (koordinate kao brojke ako postoje)
+    const payload = {
+      ...form,
+      meet_lat: form.meet_lat === "" ? null : Number(form.meet_lat),
+      meet_lng: form.meet_lng === "" ? null : Number(form.meet_lng),
+    };
+
     try {
       if (isEdit) {
-        const res = await api.put(`/api/run-plans/${id}`, form);
+        const res = await api.put(`/api/run-plans/${id}`, payload);
         const body = res?.data ?? res;
         const saved = body?.data ?? body;
         setMsg("Plan je izmenjen.");
         navigate(`/run-plans/${saved.id}`, { replace: true });
       } else {
-        // **user scope**: moraš poslati user_id
-        const payload = { ...form, user_id: userId };
+        payload.user_id = getCurrentUserId(); // backend traži user_id
         const res = await api.post("/api/run-plans", payload);
         const body = res?.data ?? res;
         const created = body?.data ?? body;
@@ -89,7 +149,6 @@ export default function RunPlanUpsert() {
         navigate(`/run-plans/${created.id}`, { replace: true });
       }
     } catch (e) {
-      // 422 validacija
       const data = e?.response?.data;
       if (e?.response?.status === 422 && data?.errors) {
         setFv(data.errors);
@@ -125,7 +184,7 @@ export default function RunPlanUpsert() {
           </div>
 
           <div className="rp-field">
-            <label className="rp__lbl">Lokacija</label>
+            <label className="rp__lbl">Lokacija (opis/tekst)</label>
             <input
               className={`rp__input ${fv.location ? "is-invalid" : ""}`}
               name="location"
@@ -162,19 +221,7 @@ export default function RunPlanUpsert() {
             {fv.target_pace_sec && <div className="rp__err">{fv.target_pace_sec[0]}</div>}
           </div>
 
-          <div className="rp-field rp-field--full">
-            <label className="rp__lbl">Napomena</label>
-            <textarea
-              className={`rp__input ${fv.notes ? "is-invalid" : ""}`}
-              name="notes"
-              value={form.notes}
-              onChange={onChange}
-              rows={4}
-              placeholder="Detalji treninga, dogovor sa ekipom…"
-            />
-            {fv.notes && <div className="rp__err">{fv.notes[0]}</div>}
-          </div>
-
+          {/* --- Koordinate --- */}
           <div className="rp-field">
             <label className="rp__lbl">Meet lat</label>
             <input
@@ -199,6 +246,38 @@ export default function RunPlanUpsert() {
               placeholder="20.412…"
             />
             {fv.meet_lng && <div className="rp__err">{fv.meet_lng[0]}</div>}
+          </div>
+
+          {/* --- Mini mapa za izbor klikom + dugme Moja lokacija --- */}
+          <div className="rp-field rp-field--full">
+            <label className="rp__lbl">Izaberi tačku na mapi (klikom)</label>
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <button type="button" className="btn" onClick={useMyLocation}>
+                Moja lokacija
+              </button>
+            </div>
+            <div style={{ height: 320, borderRadius: 12, overflow: "hidden" }}>
+              <MapContainer
+                center={initialCenter}
+                zoom={13}
+                style={{ height: "100%", width: "100%" }}
+                whenCreated={(map) => (mapRef.current = map)}
+              >
+                <TileLayer
+                  attribution='&copy; OpenStreetMap'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <ClickPicker onPick={pickOnMap} />
+                {Number.isFinite(Number(form.meet_lat)) && Number.isFinite(Number(form.meet_lng)) && (
+                  <Marker position={[Number(form.meet_lat), Number(form.meet_lng)]}>
+                    <Popup>Mesto okupljanja</Popup>
+                  </Marker>
+                )}
+              </MapContainer>
+            </div>
+            <small style={{ opacity: 0.75 }}>
+              Savet: klikni na mapu da postaviš marker i popuniš koordinate.
+            </small>
           </div>
         </div>
 

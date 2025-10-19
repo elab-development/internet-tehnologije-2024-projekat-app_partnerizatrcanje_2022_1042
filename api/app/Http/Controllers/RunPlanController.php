@@ -8,29 +8,38 @@ use Illuminate\Http\Request;
 
 class RunPlanController extends Controller
 {
-    // GET /api/run-plans?q=&date_from=&date_to=&user_id=
+    // GET /api/run-plans?q=&date_from=&date_to=&user_id=&per_page=
     public function index(Request $request)
     {
         $q = RunPlan::query()->with('user');
 
+        // q = pretraga po lokaciji
         if ($request->filled('q')) {
             $q->where('location', 'like', '%'.$request->query('q').'%');
         }
+
+        // date_from / date_to (bez Request::date, radi i na starijim Laravel verzijama)
         if ($request->filled('date_from')) {
-            $q->where('start_time', '>=', $request->date('date_from'));
+            $q->where('start_time', '>=', $request->query('date_from'));
         }
         if ($request->filled('date_to')) {
-            $q->where('start_time', '<=', $request->date('date_to'));
+            $q->where('start_time', '<=', $request->query('date_to'));
         }
+
+        // user scope
         if ($request->filled('user_id')) {
             $q->where('user_id', (int) $request->query('user_id'));
         }
 
         $q->orderBy('start_time');
 
+        // per_page bez Request::integer(); uz malo sanitizacije
+        $perPage = (int) ($request->query('per_page', 15));
+        if ($perPage <= 0)   $perPage = 15;
+        if ($perPage > 100)  $perPage = 100;
+
         return RunPlanResource::collection(
-            $q->paginate($request->integer('per_page', 15))
-              ->appends($request->query())
+            $q->paginate($perPage)->appends($request->query())
         );
     }
 
@@ -47,7 +56,7 @@ class RunPlanController extends Controller
             'meet_lng'        => ['nullable','numeric','between:-180,180'],
             'route_polyline'  => ['nullable','string'],
             'route_geojson'   => ['nullable','array'],
-            'user_id'         => ['required','integer','exists:users,id'], // eksplicitno prosleđuješ vlasnika
+            'user_id'         => ['required','integer','exists:users,id'],
         ]);
 
         $plan = RunPlan::create($data);
