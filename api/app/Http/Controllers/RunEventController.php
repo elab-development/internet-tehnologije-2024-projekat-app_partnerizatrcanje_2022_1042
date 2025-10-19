@@ -6,6 +6,7 @@ use App\Http\Resources\RunEventResource;
 use App\Http\Resources\UserResource;
 use App\Models\RunEvent;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class RunEventController extends Controller
@@ -145,13 +146,32 @@ class RunEventController extends Controller
     /**
      * DELETE /api/run-events/{runEvent}
      * Dozvoljeno organizatoru ili adminu.
-     */
-    public function destroy(Request $request, RunEvent $runEvent)
-    {
-        $this->authorizeEvent($request->user(), $runEvent);
-        $runEvent->delete();
-        return response()->json(['message' => 'Deleted']);
-    }
+            */
+        public function destroy(Request $request, RunEvent $runEvent)
+        {
+            $this->authorizeEvent($request->user(), $runEvent);
+
+            DB::transaction(function () use ($runEvent) {
+                // 1) obriši sve komentare vezane za event
+                $runEvent->comments()->delete();
+
+                // (opciono ali preporučljivo)
+                // 2) ukloni sve učesnike iz pivot tabele
+                $runEvent->participants()->detach();
+
+                // (opciono, ako imaš relaciju RunEvent::stats())
+                // 3) obriši sve run-stat zapise vezane za event
+                if (method_exists($runEvent, 'stats')) {
+                    $runEvent->stats()->delete();
+                }
+
+                // 4) na kraju — obriši sam event
+                $runEvent->delete();
+            });
+
+            return response()->json(['message' => 'Deleted']);
+        }
+
 
     /**
      * POST /api/run-events/{runEvent}/join

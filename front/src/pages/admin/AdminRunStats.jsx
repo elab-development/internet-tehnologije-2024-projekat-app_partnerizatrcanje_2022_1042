@@ -24,10 +24,69 @@ export default function AdminRunStats() {
   const [eventQ, setEventQ] = useState("");
 
   // sortiranje (klijentsko)
-  const [sortBy, setSortBy] = useState("recorded_at"); // recorded_at | distance_km | duration_sec | avg_pace_sec | calories | user | event
-  const [sortDir, setSortDir] = useState("desc");      // asc | desc
+  const [sortBy, setSortBy] = useState("recorded_at");
+  const [sortDir, setSortDir] = useState("desc");
 
   const abortRef = useRef(null);
+
+  // ------- inline STYLES -------
+  const S = {
+    page: { display: "flex" },
+    main: { padding: 24, flex: 1 },
+    headRow: { display: "flex", alignItems: "center", gap: 12, marginBottom: 12 },
+    title: { margin: 0 },
+    actions: { marginLeft: "auto", display: "flex", gap: 8 },
+    card: {
+      background: "#0e1411",
+      border: "1px solid #1f2b24",
+      borderRadius: 12,
+      padding: 12,
+    },
+    filtersGrid: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+      gap: "10px 12px",
+      alignItems: "end",
+    },
+    field: { display: "flex", flexDirection: "column", gap: 6 },
+    fieldRow: { display: "flex", gap: 8, alignItems: "center" },
+    label: {
+      fontSize: 12,
+      textTransform: "uppercase",
+      letterSpacing: ".04em",
+      color: "#a9b8b0",
+    },
+    input: {
+      width: "100%",
+      height: 36,
+      padding: "0 10px",
+      border: "1px solid #23342b",
+      borderRadius: 8,
+      background: "#0b110e",
+      color: "#e6efe9",
+      outline: "none",
+    },
+    inputFocus: { borderColor: "#2e6d4b" },
+    tableWrap: { overflowX: "auto" },
+    table: { width: "100%", borderCollapse: "collapse", minWidth: 780 },
+    th: {
+      textAlign: "left",
+      padding: "10px 12px",
+      borderBottom: "1px solid #213027",
+      color: "#cfe3d8",
+      whiteSpace: "nowrap",
+      position: "sticky",
+      top: 0,
+      background: "#0e1411",
+      zIndex: 1,
+    },
+    td: {
+      padding: "8px 12px",
+      borderBottom: "1px solid #18231d",
+      whiteSpace: "nowrap",
+    },
+    tinyBtn: { height: 36 },
+  };
 
   const params = useMemo(() => {
     const p = { page, per_page: perPage };
@@ -45,7 +104,7 @@ export default function AdminRunStats() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
 
-  // inicijalno učitaj (i pretraga) korisnike
+  // korisnici (za combobox)
   useEffect(() => {
     let alive = true;
     const ctrl = new AbortController();
@@ -63,7 +122,7 @@ export default function AdminRunStats() {
     return () => { alive = false; ctrl.abort(); };
   }, [userQ]);
 
-  // inicijalno učitaj (i pretraga) evente
+  // eventi (za combobox)
   useEffect(() => {
     let alive = true;
     const ctrl = new AbortController();
@@ -144,7 +203,7 @@ export default function AdminRunStats() {
           B = b.duration_sec ?? -Infinity;
           break;
         case "avg_pace_sec":
-          A = a.avg_pace_sec ?? Infinity; // manji je bolji → ali ovde samo numeric sort
+          A = a.avg_pace_sec ?? Infinity;
           B = b.avg_pace_sec ?? Infinity;
           break;
         case "calories":
@@ -156,8 +215,8 @@ export default function AdminRunStats() {
           B = (b.user?.name ?? `#${b.user_id}`)?.toLowerCase();
           break;
         case "event":
-          A = (a.run_event_id ?? 0);
-          B = (b.run_event_id ?? 0);
+          A = a.run_event_id ?? 0;
+          B = b.run_event_id ?? 0;
           break;
         case "recorded_at":
         default:
@@ -182,24 +241,14 @@ export default function AdminRunStats() {
   }
 
   async function exportCsv() {
-    // fetch ALL PAGES sa istim filtrima
     const cols = [
-      "id",
-      "user_id",
-      "user_name",
-      "run_event_id",
-      "recorded_at",
-      "distance_km",
-      "duration_sec",
-      "avg_pace_sec",
-      "avg_pace_str",
-      "calories",
+      "id","user_id","user_name","run_event_id","recorded_at",
+      "distance_km","duration_sec","avg_pace_sec","avg_pace_str","calories",
     ];
 
-    const p = { ...params, page: 1, per_page: 200 }; // backend cap: 100 (ok)
+    const p = { ...params, page: 1, per_page: 200 };
     const all = [];
-    let current = 1;
-    let last = 1;
+    let current = 1, last = 1;
 
     setLoading(true);
     setErr("");
@@ -226,26 +275,17 @@ export default function AdminRunStats() {
           });
         }
 
-        if (meta) {
-          current = meta.current_page + 1;
-          last = meta.last_page;
-        } else {
-          current = 2; last = 1;
-        }
+        if (meta) { current = meta.current_page + 1; last = meta.last_page; }
+        else { current = 2; last = 1; }
       } while (current <= last);
 
       const header = cols.join(",");
-      const rows = all.map((r) =>
+      const rows = all.map(r =>
         [
-          csvEscape(r.id),
-          csvEscape(r.user_id),
-          csvEscape(r.user_name),
-          csvEscape(r.run_event_id),
-          csvEscape(r.recorded_at),
-          csvEscape(r.distance_km),
-          csvEscape(r.duration_sec),
-          csvEscape(r.avg_pace_sec),
-          csvEscape(r.avg_pace_str),
+          csvEscape(r.id), csvEscape(r.user_id), csvEscape(r.user_name),
+          csvEscape(r.run_event_id), csvEscape(r.recorded_at),
+          csvEscape(r.distance_km), csvEscape(r.duration_sec),
+          csvEscape(r.avg_pace_sec), csvEscape(r.avg_pace_str),
           csvEscape(r.calories),
         ].join(",")
       );
@@ -253,14 +293,12 @@ export default function AdminRunStats() {
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,"-");
       a.href = url;
       a.download = `run_stats_${stamp}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (e) {
+    } catch {
       setErr("Export nije uspeo.");
     } finally {
       setLoading(false);
@@ -270,7 +308,7 @@ export default function AdminRunStats() {
   function SortControl({ value, onChange, dir, setDir }) {
     return (
       <div style={{ display: "flex", gap: 8 }}>
-        <select className="rp__input" value={value} onChange={(e) => onChange(e.target.value)}>
+        <select style={S.input} value={value} onChange={(e) => onChange(e.target.value)}>
           <option value="recorded_at">Datum</option>
           <option value="user">Korisnik</option>
           <option value="event">Event</option>
@@ -284,6 +322,7 @@ export default function AdminRunStats() {
           className="btn btn--tiny"
           onClick={() => setDir(dir === "asc" ? "desc" : "asc")}
           title="Promeni smer"
+          style={S.tinyBtn}
         >
           {dir === "asc" ? <FiChevronUp /> : <FiChevronDown />} {dir.toUpperCase()}
         </button>
@@ -292,44 +331,36 @@ export default function AdminRunStats() {
   }
 
   return (
-    <div className="admin-layout" style={{ display: "flex" }}>
+    <div className="admin-layout" style={S.page}>
       <AdminSidebar />
 
-      <main className="hp" style={{ padding: 24, flex: 1 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-          <h2 style={{ margin: 0 }}>Run stats (admin)</h2>
-          <span style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-            <button className="btn btn--tiny" onClick={loadPage} title="Osveži">
+      <main className="hp" style={S.main}>
+        <div style={S.headRow}>
+          <h2 style={S.title}>Run stats (admin)</h2>
+          <span style={S.actions}>
+            <button className="btn btn--tiny" onClick={loadPage} title="Osveži" style={S.tinyBtn}>
               <FiRefreshCw /> Osveži
             </button>
-            <button className="btn btn--tiny" onClick={exportCsv} title="Export CSV">
+            <button className="btn btn--tiny" onClick={exportCsv} title="Export CSV" style={S.tinyBtn}>
               <FiDownload /> Export CSV
             </button>
           </span>
         </div>
 
         {/* Filter bar */}
-        <section className="redetail__card" style={{ marginBottom: 12 }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(12, minmax(90px, 1fr))",
-              gap: 8,
-              alignItems: "end",
-            }}
-          >
+        <section style={{ ...S.card, marginBottom: 12 }}>
+          <div style={S.filtersGrid}>
             {/* USER combobox */}
-            <div style={{ gridColumn: "span 3" }}>
-              <label className="rp__lbl">Korisnik</label>
+            <div style={S.field}>
+              <label style={S.label}>Korisnik</label>
               <input
-                className="rp__input"
+                style={{ ...S.input, marginBottom: 6 }}
                 placeholder="Pretraži ime/email…"
                 value={userQ}
                 onChange={(e) => setUserQ(e.target.value)}
-                style={{ marginBottom: 6 }}
               />
               <select
-                className="rp__input"
+                style={S.input}
                 value={userId}
                 onChange={(e) => { setUserId(e.target.value); setPage(1); }}
               >
@@ -343,17 +374,16 @@ export default function AdminRunStats() {
             </div>
 
             {/* EVENT combobox */}
-            <div style={{ gridColumn: "span 3" }}>
-              <label className="rp__lbl">Event</label>
+            <div style={S.field}>
+              <label style={S.label}>Event</label>
               <input
-                className="rp__input"
+                style={{ ...S.input, marginBottom: 6 }}
                 placeholder="Pretraži lokaciju…"
                 value={eventQ}
                 onChange={(e) => setEventQ(e.target.value)}
-                style={{ marginBottom: 6 }}
               />
               <select
-                className="rp__input"
+                style={S.input}
                 value={eventId}
                 onChange={(e) => { setEventId(e.target.value); setPage(1); }}
               >
@@ -366,37 +396,31 @@ export default function AdminRunStats() {
               </select>
             </div>
 
-            <div style={{ gridColumn: "span 2" }}>
-              <label className="rp__lbl">Datum od</label>
-              <input type="date" className="rp__input" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+            <div style={S.field}>
+              <label style={S.label}>Datum od</label>
+              <input type="date" style={S.input} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
             </div>
-            <div style={{ gridColumn: "span 2" }}>
-              <label className="rp__lbl">Datum do</label>
-              <input type="date" className="rp__input" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            <div style={S.field}>
+              <label style={S.label}>Datum do</label>
+              <input type="date" style={S.input} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
             </div>
-            <div style={{ gridColumn: "span 2" }}>
-              <label className="rp__lbl">Po strani</label>
-              <select className="rp__input" value={perPage} onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}>
+            <div style={S.field}>
+              <label style={S.label}>Po strani</label>
+              <select style={S.input} value={perPage} onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}>
                 {[10, 20, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
               </select>
             </div>
 
-            {/* Sortiranje */}
-            <div style={{ gridColumn: "span 3" }}>
-              <label className="rp__lbl">Sortiraj</label>
-              <SortControl
-                value={sortBy}
-                onChange={setSortBy}
-                dir={sortDir}
-                setDir={setSortDir}
-              />
+            <div style={S.field}>
+              <label style={S.label}>Sortiraj</label>
+              <SortControl value={sortBy} onChange={setSortBy} dir={sortDir} setDir={setSortDir} />
             </div>
 
-            <div style={{ gridColumn: "span 3", display: "flex", gap: 8 }}>
-              <button className="btn btn--tiny" onClick={() => setPage(1)}>
+            <div style={{ ...S.fieldRow, justifyContent: "flex-start" }}>
+              <button className="btn btn--tiny" onClick={() => setPage(1)} style={S.tinyBtn}>
                 <FiFilter /> Primeni filtere
               </button>
-              <button className="btn btn--tiny" onClick={resetFilters}>Reset</button>
+              <button className="btn btn--tiny" onClick={resetFilters} style={S.tinyBtn}>Reset</button>
             </div>
           </div>
         </section>
@@ -405,40 +429,40 @@ export default function AdminRunStats() {
         {err && <div className="note">{err}</div>}
 
         {/* Tabela */}
-        <div style={{ overflowX: "auto" }}>
-          <table className="re-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+        <div style={S.tableWrap}>
+          <table className="re-table" style={S.table}>
             <thead>
               <tr>
-                <Th>#</Th>
-                <Th>Recorded at</Th>
-                <Th>User</Th>
-                <Th>Event</Th>
-                <Th>Distance (km)</Th>
-                <Th>Duration (sec)</Th>
-                <Th>Pace (sec/km)</Th>
-                <Th>Pace</Th>
-                <Th>Calories</Th>
+                <Th style={S.th}>#</Th>
+                <Th style={S.th}>Recorded at</Th>
+                <Th style={S.th}>User</Th>
+                <Th style={S.th}>Event</Th>
+                <Th style={S.th}>Distance (km)</Th>
+                <Th style={S.th}>Duration (sec)</Th>
+                <Th style={S.th}>Pace (sec/km)</Th>
+                <Th style={S.th}>Pace</Th>
+                <Th style={S.th}>Calories</Th>
               </tr>
             </thead>
             <tbody>
               {sortedItems.length === 0 ? (
                 <tr>
-                  <Td colSpan={9} style={{ textAlign: "center", padding: 16, opacity: .8 }}>
+                  <Td colSpan={9} style={{ ...S.td, textAlign: "center", padding: 16, opacity: .8 }}>
                     Nema zapisa.
                   </Td>
                 </tr>
               ) : (
                 sortedItems.map((r, i) => (
-                  <tr key={r.id}>
-                    <Td>{(meta?.from ?? 1) + i}</Td>
-                    <Td title={r.recorded_at || ""}>{fmtDateTime(r.recorded_at)}</Td>
-                    <Td>{r.user?.name ?? `#${r.user_id}`}</Td>
-                    <Td>{r.run_event_id ?? "—"}</Td>
-                    <Td>{r.distance_km != null ? Number(r.distance_km).toFixed(2) : "—"}</Td>
-                    <Td>{r.duration_sec ?? "—"}</Td>
-                    <Td>{r.avg_pace_sec ?? "—"}</Td>
-                    <Td>{fmtPace(r.avg_pace_sec)}</Td>
-                    <Td>{r.calories ?? "—"}</Td>
+                  <tr key={r.id} style={{ cursor: "default" }}>
+                    <Td style={S.td}>{(meta?.from ?? 1) + i}</Td>
+                    <Td style={S.td} title={r.recorded_at || ""}>{fmtDateTime(r.recorded_at)}</Td>
+                    <Td style={S.td}>{r.user?.name ?? `#${r.user_id}`}</Td>
+                    <Td style={S.td}>{r.run_event_id ?? "—"}</Td>
+                    <Td style={S.td}>{r.distance_km != null ? Number(r.distance_km).toFixed(2) : "—"}</Td>
+                    <Td style={S.td}>{r.duration_sec ?? "—"}</Td>
+                    <Td style={S.td}>{r.avg_pace_sec ?? "—"}</Td>
+                    <Td style={S.td}>{fmtPace(r.avg_pace_sec)}</Td>
+                    <Td style={S.td}>{r.calories ?? "—"}</Td>
                   </tr>
                 ))
               )}
@@ -453,6 +477,7 @@ export default function AdminRunStats() {
               className="btn btn--tiny"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={meta.current_page <= 1}
+              style={S.tinyBtn}
             >
               ← Prethodna
             </button>
@@ -463,6 +488,7 @@ export default function AdminRunStats() {
               className="btn btn--tiny"
               onClick={() => setPage((p) => Math.min(meta.last_page, p + 1))}
               disabled={meta.current_page >= meta.last_page}
+              style={S.tinyBtn}
             >
               Sledeća →
             </button>
@@ -473,9 +499,9 @@ export default function AdminRunStats() {
   );
 }
 
-function Th({ children }) {
-  return <th style={{ textAlign: "left", padding: "10px 12px", borderBottom: "1px solid #2a2a2a", whiteSpace: "nowrap" }}>{children}</th>;
+function Th({ children, style }) {
+  return <th style={style}>{children}</th>;
 }
-function Td({ children, ...rest }) {
-  return <td {...rest} style={{ padding: "8px 12px", borderBottom: "1px solid #1b1b1b", whiteSpace: "nowrap" }} {...rest}>{children}</td>;
+function Td({ children, style, ...rest }) {
+  return <td {...rest} style={style}>{children}</td>;
 }

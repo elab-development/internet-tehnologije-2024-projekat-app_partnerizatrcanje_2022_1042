@@ -1,16 +1,14 @@
- 
+// src/pages/admin/AdminSidebar.jsx
 import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import api from "../../api";
 import "./admin-sidebar.css";
- 
+
 import {
   FiHome,
   FiUsers,
-  FiActivity,
-  FiCalendar,
   FiBarChart2,
-  FiSettings,
+  FiTrendingUp,
   FiMenu,
   FiLogOut,
 } from "react-icons/fi";
@@ -53,24 +51,14 @@ export default function AdminSidebar() {
           <span>Users</span>
         </NavLink>
 
-        <NavLink to="/admin/events" className={linkCls}>
-          <FiActivity className="admin-nav__icon" />
-          <span>Events</span>
-        </NavLink>
-
-        <NavLink to="/admin/plans" className={linkCls}>
-          <FiCalendar className="admin-nav__icon" />
-          <span>Plans</span>
-        </NavLink>
-
         <NavLink to="/admin/stats" className={linkCls}>
           <FiBarChart2 className="admin-nav__icon" />
           <span>Stats</span>
         </NavLink>
 
-        <NavLink to="/admin/settings" className={linkCls}>
-          <FiSettings className="admin-nav__icon" />
-          <span>Settings</span>
+        <NavLink to="/admin/run-stats" className={linkCls}>
+          <FiTrendingUp className="admin-nav__icon" />
+          <span>Run stats</span>
         </NavLink>
       </nav>
 

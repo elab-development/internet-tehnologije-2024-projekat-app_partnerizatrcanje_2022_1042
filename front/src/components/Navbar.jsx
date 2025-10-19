@@ -4,26 +4,23 @@ import "./navbar.css";
 
 export default function Navbar({
   brand = { label: "RunTogether", to: "/" },
-  links = [
-    { to: "/", label: "Početna" },
-  
-  ],
+  links = [{ to: "/", label: "Početna" }],
   guestLinks = [
     { to: "/login", label: "Prijava" },
     { to: "/register", label: "Registracija" },
-  ],
+  ], 
   authedLinks = [
-     { to: "/run-events", label: "Događaji" },
-     { to: "/run-plans", label: "Planovi" },
-     { to: "/nearby", label: "Mapa" },
-
+    { to: "/run-events", label: "Događaji" },
+    { to: "/run-plans", label: "Planovi" },
+    { to: "/run-plans/new", label: "Kreiraj plan" },  
+    { to: "/nearby", label: "Mapa" },
+    { to: "/mojestatistike", label: "Moje statistike" },
   ],
-  onLogout,              // opciono: async () => {}
-  showLogout = true,     // prikaz "Odjava" ako postoji token
+  onLogout,           
+  showLogout = true,  
 }) {
   const [open, setOpen] = useState(false);
-
-  // prost check — po želji kontrolu prebaci u globalni state/context
+ 
   const isAuthed = useMemo(() => !!localStorage.getItem("token"), []);
 
   const handleLogout = async () => {
@@ -31,8 +28,9 @@ export default function Navbar({
       if (onLogout) {
         await onLogout();
       } else {
-        // default: samo ukloni token (ako želiš pravi logout API poziv, prosledi onLogout iz App-a)
+        // default ponašanje: ukloni token i preusmeri
         localStorage.removeItem("token");
+        localStorage.removeItem("user_id");
         window.location.href = "/login";
       }
     } finally {
@@ -103,6 +101,7 @@ export default function Navbar({
                     {l.label}
                   </NavLink>
                 ))}
+
                 {showLogout && (
                   <button className="btn btn--primary btn--tiny" onClick={handleLogout}>
                     Odjava

@@ -408,7 +408,7 @@ export default function RunEventDetail() {
                 <button className="btn" onClick={() => setStatOpen(true)}>
                   Unesi rezultat
                 </button>
-                <Link to="/my-stats" className="btn btn--tiny">Moja statistika →</Link>
+               
               </div>
             )}
           </section>
