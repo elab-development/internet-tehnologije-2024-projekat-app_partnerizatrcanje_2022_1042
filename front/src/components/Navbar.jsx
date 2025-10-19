@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from "react";
-import { NavLink, Link } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { NavLink, Link, useLocation } from "react-router-dom";
 import "./navbar.css";
 
 export default function Navbar({
@@ -8,33 +8,57 @@ export default function Navbar({
   guestLinks = [
     { to: "/login", label: "Prijava" },
     { to: "/register", label: "Registracija" },
-  ], 
+  ],
   authedLinks = [
     { to: "/run-events", label: "Događaji" },
     { to: "/run-plans", label: "Planovi" },
-    { to: "/run-plans/new", label: "Kreiraj plan" },  
+    { to: "/run-plans/new", label: "Kreiraj plan" },
     { to: "/nearby", label: "Mapa" },
     { to: "/mojestatistike", label: "Moje statistike" },
   ],
-  onLogout,           
-  showLogout = true,  
+  onLogout,
+  showLogout = true,
 }) {
   const [open, setOpen] = useState(false);
- 
-  const isAuthed = useMemo(() => !!localStorage.getItem("token"), []);
+  const [isAuthed, setIsAuthed] = useState(!!localStorage.getItem("token"));
+  const { pathname } = useLocation();
+
+  // Helper koji sinhronizuje stanje sa localStorage
+  const refreshAuth = () => setIsAuthed(!!localStorage.getItem("token"));
+
+  // Reaguj na promenu rute (npr. posle uspešnog logina redirect)
+  useEffect(() => {
+    refreshAuth();
+  }, [pathname]);
+
+  // Reaguj na promene u drugim tabovima + fokus + custom event "auth:changed"
+  useEffect(() => {
+    const handler = () => refreshAuth();
+    window.addEventListener("storage", handler);       // drugi tabovi
+    window.addEventListener("focus", handler);         // povratak u tab
+    window.addEventListener("auth:changed", handler);  // ručno emitujemo posle logina/odjave
+    return () => {
+      window.removeEventListener("storage", handler);
+      window.removeEventListener("focus", handler);
+      window.removeEventListener("auth:changed", handler);
+    };
+  }, []);
 
   const handleLogout = async () => {
     try {
       if (onLogout) {
         await onLogout();
       } else {
-        // default ponašanje: ukloni token i preusmeri
+        // default: očisti lokalno; ako imaš API /api/logout poziv, stavi ga u onLogout iz App-a
         localStorage.removeItem("token");
         localStorage.removeItem("user_id");
-        window.location.href = "/login";
       }
     } finally {
+      // obavesti sve (isti tab i ostali delovi app-a) da se auth promenio
+      window.dispatchEvent(new Event("auth:changed"));
       setOpen(false);
+      // po želji i navigacija:
+      window.location.href = "/login";
     }
   };
 
@@ -79,7 +103,9 @@ export default function Navbar({
                   key={l.to}
                   to={l.to}
                   className={({ isActive }) =>
-                    `btn btn--ghost btn--tiny navbar__cta ${isActive ? "is-active" : ""}`
+                    `btn btn--ghost btn--tiny navbar__cta ${
+                      isActive ? "is-active" : ""
+                    }`
                   }
                   onClick={() => setOpen(false)}
                 >
@@ -94,7 +120,9 @@ export default function Navbar({
                     key={l.to}
                     to={l.to}
                     className={({ isActive }) =>
-                      `btn btn--ghost btn--tiny navbar__cta ${isActive ? "is-active" : ""}`
+                      `btn btn--ghost btn--tiny navbar__cta ${
+                        isActive ? "is-active" : ""
+                      }`
                     }
                     onClick={() => setOpen(false)}
                   >

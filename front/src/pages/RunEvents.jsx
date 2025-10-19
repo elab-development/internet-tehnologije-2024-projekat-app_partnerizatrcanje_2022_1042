@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import api from "../api";
-import "./run-events.css"; // opciono
+import "./run-events.css";
 import { Link } from "react-router-dom";
 
 export default function RunEventsTable() {
+  const [me, setMe] = useState(null);
   const [items, setItems] = useState([]);
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -11,6 +12,25 @@ export default function RunEventsTable() {
   const [page, setPage] = useState(1);
   const perPage = 12;
 
+  // učitaj /api/me (ako postoji token)
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) { setMe(null); return; }
+
+    let alive = true;
+    (async () => {
+      try {
+        const res = await api.get("/api/me");
+        const user = res?.data?.data ?? res?.data ?? res;
+        if (alive) setMe(user || null);
+      } catch {
+        if (alive) setMe(null);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  // lista događaja (paginacija)
   useEffect(() => {
     const ctrl = new AbortController();
     (async () => {
@@ -21,7 +41,7 @@ export default function RunEventsTable() {
           params: { page, per_page: perPage },
           signal: ctrl.signal,
         });
-        const body = res?.data ?? res; // radi i sa interceptorom i bez
+        const body = res?.data ?? res;
         setItems(Array.isArray(body?.data) ? body.data : []);
         setMeta(body?.meta ?? null);
       } catch (e) {
@@ -46,6 +66,31 @@ export default function RunEventsTable() {
       minute: "2-digit",
     });
   };
+
+  const canDelete = (ev) => {
+    if (!me) return false;
+    return me.role === "admin" || Number(ev.organizer_id) === Number(me.id);
+  };
+
+  async function deleteEvent(ev) {
+    if (!canDelete(ev)) return;
+    const ok = window.confirm(
+      `Obrisati događaj #${ev.id}? Ovo će obrisati i komentare, učesnike i statistiku povezanu sa događajem.`
+    );
+    if (!ok) return;
+
+    try {
+      await api.delete(`/api/run-events/${ev.id}`);
+      // 1) ukloni iz tabele
+      setItems((prev) => prev.filter((x) => x.id !== ev.id));
+      // 2) ažuriraj meta.total bez referenci na nepostojeće promenljive
+      setMeta((m) =>
+        m ? { ...m, total: Math.max(0, (m.total ?? 0) - 1) } : m
+      );
+    } catch {
+      alert("Brisanje nije uspelo.");
+    }
+  }
 
   return (
     <main className="hp" style={{ padding: 24 }}>
@@ -98,8 +143,20 @@ export default function RunEventsTable() {
                       <td style={td}>{e.organizer?.name || "—"}</td>
                       <td style={td}>{e.participants_count ?? 0}</td>
                       <td style={td}>{e.comments_count ?? 0}</td>
-                      <td style={td}>
-                       <Link className="link" to={`/run-events/${e.id}`}>Detalj</Link>
+                      <td style={{ ...td, whiteSpace: "nowrap" }}>
+                        <Link className="link" to={`/run-events/${e.id}`} style={{ marginRight: 10 }}>
+                          Detalj
+                        </Link>
+                        {canDelete(e) && (
+                          <button
+                            className="btn btn--tiny"
+                            style={{ background: "#311", borderColor: "#522", color: "#f8d7da" }}
+                            onClick={() => deleteEvent(e)}
+                            title="Obriši događaj"
+                          >
+                            Obriši
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -133,6 +190,6 @@ export default function RunEventsTable() {
   );
 }
 
-// jednostavni stilovi (možeš slobodno izbaciti ako imaš svoje klase)
+// jednostavni inline stilovi
 const th = { textAlign: "left", padding: "10px 12px", borderBottom: "1px solid #2a2a2a" };
 const td = { padding: "8px 12px", borderBottom: "1px solid #1b1b1b" };

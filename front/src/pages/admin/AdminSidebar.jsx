@@ -55,7 +55,10 @@ export default function AdminSidebar() {
           <FiBarChart2 className="admin-nav__icon" />
           <span>Stats</span>
         </NavLink>
-
+        <NavLink to="/admin/run-events" className={linkCls}>
+          <FiBarChart2 className="admin-nav__icon" />
+          <span>Dogadjaji</span>
+        </NavLink>
         <NavLink to="/admin/run-stats" className={linkCls}>
           <FiTrendingUp className="admin-nav__icon" />
           <span>Run stats</span>
