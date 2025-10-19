@@ -1,0 +1,2 @@
+.admin-page { display: grid; grid-template-columns: 260px 1fr; gap: 16px; }
+.admin-content { min-width: 0; }

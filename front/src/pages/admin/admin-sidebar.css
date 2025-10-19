@@ -1,0 +1,96 @@
+/* Layout */
+.admin-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: calc(100vh - 64px); /* prilagodi visini tvog Navbar-a */
+  gap: 0;
+}
+
+/* Sidebar */
+.admin-aside {
+  position: sticky;
+  top: 64px; /* poravnaj sa Navbar-om */
+  align-self: start;
+  height: calc(100vh - 64px);
+  border-right: 1px solid #1b1b1b;
+  background: #0f1512;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  z-index: 2;
+}
+
+.admin-aside__brand {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 4px 10px;
+  font-weight: 700;
+  letter-spacing: .3px;
+}
+
+.admin-aside__toggle {
+  display: none;
+  background: transparent;
+  border: 0;
+  color: #ddd;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.admin-nav__link {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #cdd9d5;
+  text-decoration: none;
+  transition: background .15s ease;
+}
+.admin-nav__link:hover { background: #0a1a15; }
+.admin-nav__link.is-active {
+  background: #0e2a21;
+  color: #e6fff6;
+  font-weight: 600;
+}
+
+.admin-aside__footer {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid #16211d;
+}
+
+/* Content */
+.admin-content {
+  padding: 20px;
+}
+
+/* Mobile */
+@media (max-width: 900px) {
+  .admin-layout {
+    grid-template-columns: 1fr;
+  }
+  .admin-aside {
+    position: static;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid #1b1b1b;
+  }
+  .admin-aside__toggle {
+    display: inline-block;
+  }
+  .admin-nav {
+    display: none;
+  }
+  .admin-aside.is-open .admin-nav {
+    display: flex;
+  }
+}
+.admin-nav__link { display: flex; align-items: center; gap: 8px; }
+.admin-nav__icon { flex: 0 0 auto; }
