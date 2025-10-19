@@ -9,6 +9,8 @@ import { Button } from "../components/ui/Button";
 import { Note } from "../components/ui/Note";
 import { useNavigate } from "react-router-dom";
 
+const API_BASE = "http://127.0.0.1:8000";
+
 export default function Login() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "mila@example.com", password: "password" });
@@ -16,20 +18,38 @@ export default function Login() {
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState("");
 
-  // animacije + auto-redirect ako je već ulogovan
+  // Ako postoji token, proveri rolu i preusmeri
   useEffect(() => {
-    if (localStorage.getItem("token")) {
-      navigate("/run-events", { replace: true });
-      return; // nema potrebe da se kači IO
+    const existing = localStorage.getItem("token");
+    if (!existing) {
+      // animacije samo kad nije ulogovan
+      const els = document.querySelectorAll(".reveal");
+      const io = new IntersectionObserver(
+        entries => entries.forEach(e => e.isIntersecting && e.target.classList.add("in")),
+        { threshold: 0.12 }
+      );
+      els.forEach(el => io.observe(el));
+      return () => io.disconnect();
     }
-    const els = document.querySelectorAll(".reveal");
-    const io = new IntersectionObserver(
-      (entries) =>
-        entries.forEach((e) => e.isIntersecting && e.target.classList.add("in")),
-      { threshold: 0.12 }
-    );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
+
+    // ako je token prisutan, probaj da dobiješ /me i odvedi na odgovarajuću rutu
+    (async () => {
+      try {
+        const meRes = await axios.get(`${API_BASE}/api/me`, {
+          headers: { Authorization: `Bearer ${existing}` },
+        });
+        const me = meRes?.data?.data ?? meRes?.data ?? null;
+        if (me?.role === "admin") {
+          navigate("/admin", { replace: true });
+        } else {
+          navigate("/run-plans", { replace: true });
+        }
+      } catch {
+        // ako token nije validan, očisti i ostani na loginu
+        localStorage.removeItem("token");
+        localStorage.removeItem("user_id");
+      }
+    })();
   }, [navigate]);
 
   const onChange = (e) => {
@@ -44,10 +64,31 @@ export default function Login() {
     setMessage("");
 
     try {
-      const res = await axios.post("http://127.0.0.1:8000/api/login", form);
-      const { token } = res.data || {};
+      // 1) login
+      const res = await axios.post(`${API_BASE}/api/login`, form);
+      const { token, user_id } = res.data || {};
       if (token) localStorage.setItem("token", token);
-      navigate("/run-events", { replace: true });
+      if (user_id) localStorage.setItem("user_id", String(user_id));
+
+      // 2) učitaj /me da vidiš rolu
+      let role = null;
+      try {
+        const meRes = await axios.get(`${API_BASE}/api/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const me = meRes?.data?.data ?? meRes?.data ?? null;
+        role = me?.role ?? null;
+        if (me?.id) localStorage.setItem("user_id", String(me.id));
+      } catch {
+        // ako padne /me, i dalje preusmeri korisnika na default non-admin rutu
+      }
+
+      // 3) preusmerenje po roli
+      if (role === "admin") {
+        navigate("/admin", { replace: true });
+      } else {
+        navigate("/run-plans", { replace: true });
+      }
     } catch (err) {
       if (err.response?.status === 422) {
         setErrors(err.response.data.errors || {});
