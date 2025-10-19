@@ -14,6 +14,7 @@ export default function Navbar({
   ],
   authedLinks = [
      { to: "/run-events", label: "Događaji" },
+     { to: "/run-plans", label: "Planovi" },
      { to: "/nearby", label: "Mapa" },
 
   ],
