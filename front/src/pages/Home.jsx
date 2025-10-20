@@ -22,7 +22,7 @@ export default function Home() {
     (async () => {
       setLoading(true);
       try {
-        // Možeš koristiti .env umesto hardkodovanog ključa
+ 
         const key =
           import.meta?.env?.VITE_UNSPLASH_ACCESS_KEY ||
           "uXtZdwbexabEXQQQmvTC68aMpSEHk2sIancwrIv2sXM";
@@ -174,7 +174,7 @@ export default function Home() {
         </div>
 
         <p style={{ opacity: .6, fontSize: 12, marginTop: 10 }}>
-          Fotografije putem Unsplash API-ja. Za produkciju koristi <code>VITE_UNSPLASH_ACCESS_KEY</code> u <code>.env</code>.
+          Fotografije preuzete sa Unsplash API-ja.
         </p>
       </section>
 

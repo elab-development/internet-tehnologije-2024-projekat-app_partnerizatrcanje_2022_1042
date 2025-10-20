@@ -32,7 +32,7 @@ class RunStatController extends Controller
 
             $q->orderByDesc('recorded_at');
 
-            // ✅ zamena za $request->integer(...)
+            //   zamena za $request->integer(...)
             $perPage = (int) $request->query('per_page', 15);
             if ($perPage <= 0) $perPage = 15;
             if ($perPage > 100) $perPage = 100;

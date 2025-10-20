@@ -1,4 +1,4 @@
-// src/pages/admin/AdminEvents.jsx
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import api from "../../api";
 import AdminSidebar from "./AdminSidebar";

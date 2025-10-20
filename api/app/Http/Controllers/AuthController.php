@@ -95,8 +95,7 @@ class AuthController extends Controller
         $u->last_accuracy_m = $data['accuracy_m'] ?? null;
         $u->last_seen_at    = now();
         $u->save();
-
-        // možeš vratiti i UserResource ako želiš
+ 
         return response()->json(['message' => 'ok']);
     }
 

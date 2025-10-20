@@ -46,37 +46,8 @@ const cacheSet = (key, val, ttlMs = 24 * 60 * 60 * 1000) => {
   } catch {}
 };
 
-// Front geokodiranje "location" → lat/lng, preko OpenStreetMap Nominatim-a
-// Napomena: ovo je plan B ako nemamo geo kolone u bazi; keširamo rezultat 24h
-async function geocodeLocation(q) {
-  if (!q) return null;
-  const key = "geo:" + q.trim().toLowerCase();
-  const cached = cacheGet(key);
-  if (cached && Number.isFinite(cached.lat) && Number.isFinite(cached.lng)) return cached;
-
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
-  if (!res.ok) throw new Error("Geocoding failed");
-
-  const arr = await res.json();
-  const first = Array.isArray(arr) && arr[0] ? { lat: parseFloat(arr[0].lat), lng: parseFloat(arr[0].lon) } : null;
-  if (first && Number.isFinite(first.lat) && Number.isFinite(first.lng)) cacheSet(key, first);
-  return first;
-}
-
-// Haversine – izračunaj vazdušnu udaljenost u km između dve geo tačke
-function distKm(a, b) {
-  if (!a || !b) return Infinity;
-  const R = 6371;
-  const toRad = (d) => (d * Math.PI) / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
-}
-
+ 
+ 
 /* ------------------ Custom Leaflet ikone (DivIcon + CSS) ------------------ */
 // Umesto PNG-ova, crtamo pin preko CSS-a i samo menjamo boju.
 // (iconAnchor/popupAnchor podešavaju poravnanje prema vrhu pina).
@@ -91,13 +62,7 @@ const userIcon = L.divIcon({
   iconSize: [28, 36],
   iconAnchor: [14, 36],
   popupAnchor: [0, -34],
-});
-const eventIcon = L.divIcon({
-  className: "pin pin--event",
-  iconSize: [28, 36],
-  iconAnchor: [14, 36],
-  popupAnchor: [0, -34],
-});
+}); 
 
 export default function NearbyMap() {
   // center/accuracy držimo iz browser geolokacije
@@ -109,8 +74,7 @@ export default function NearbyMap() {
 
   // podaci za mapu
   const [me, setMe] = useState(null);      // odgovor sa /api/me/location (opciono)
-  const [users, setUsers] = useState([]);  // trkači iz /api/nearby-users
-  const [events, setEvents] = useState([]); // run-events (front geokod)
+  const [users, setUsers] = useState([]);  // trkači iz /api/nearby-users 
 
   const [err, setErr] = useState("");      // poruka korisniku (ako nešto krene po zlu)
   const timerRef = useRef(null);
@@ -150,7 +114,7 @@ export default function NearbyMap() {
     } catch {/* GET je opcion – ako 404/403, samo ignorišemo */}
   }
 
-  /* ------------------ 3) Učitaj ko je blizu + evente (sa front geokodom) ------------------ */
+  /* ------------------ 3) Učitaj ko je blizu   ------------------ */
   async function pullNearby() {
     if (!center) return;
     setErr("");
@@ -160,46 +124,14 @@ export default function NearbyMap() {
         hasToken
           ? api.get("/api/nearby-users", { params: { lat: center.lat, lng: center.lng, radius_km: radiusKm } })
           : Promise.resolve({ data: { users: [] } }),
-        api.get("/api/run-events", {
-          params: {
-            // evente od poslednjeg sata (primer), da ne vučemo istoriju
-            date_from: new Date(Date.now() - 3600_000).toISOString().slice(0, 19).replace("T", " "),
-            per_page: 50,
-          },
-        }),
+         
       ]);
 
       // 3a) trkači
       setUsers(Array.isArray(uRes?.data?.users) ? uRes.data.users : []);
 
-      // 3b) događaji – ako nemaju koordinate, geokodiramo "location" na frontu i keširamo
-      const rows = Array.isArray(eRes?.data?.data) ? eRes.data.data : [];
-      const needGeo = [];
-      const prelim = rows.map((ev) => {
-        const hasLatLng = Number.isFinite(ev.meet_lat) && Number.isFinite(ev.meet_lng);
-        if (!hasLatLng && ev.location) needGeo.push(ev);
-        return hasLatLng
-          ? { ...ev, _lat: parseFloat(ev.meet_lat), _lng: parseFloat(ev.meet_lng) }
-          : { ...ev, _lat: null, _lng: null };
-      });
-
-      // Poštuj Nominatim rate-limit: pravimo 1 req/s redom
-      for (let i = 0; i < needGeo.length; i++) {
-        const ev = needGeo[i];
-        const coords = await geocodeLocation(ev.location).catch(() => null);
-        if (coords) {
-          const idx = prelim.findIndex((p) => p.id === ev.id);
-          if (idx >= 0) { prelim[idx]._lat = coords.lat; prelim[idx]._lng = coords.lng; }
-        }
-        if (i < needGeo.length - 1) await sleep(1100);
-      }
-
-      // Filtriraj evente po radijusu od mog centra (jer backend još ne filtrira po geo)
-      const filtered = prelim
-        .filter((ev) => Number.isFinite(ev._lat) && Number.isFinite(ev._lng))
-        .filter((ev) => distKm(center, { lat: ev._lat, lng: ev._lng }) <= radiusKm);
-
-      setEvents(filtered);
+       
+     
     } catch (e) {
       setErr("Ne mogu da učitam podatke u blizini.");
     }
@@ -226,7 +158,7 @@ export default function NearbyMap() {
 
   return (
     <main className="hp" style={{ padding: 16 }}>
-      {/* Umetnuti CSS za DivIcon pinove (mali trik da sve bude u jednoj komponenti) */}
+      
       <style>{`
         .pin { position: relative; width:28px; height:36px; }
         .pin::before{
@@ -289,19 +221,7 @@ export default function NearbyMap() {
             </Marker>
           ))}
 
-          {/* Događaji: ako nemaju geo u bazi, geokodirano je iz "location" i keširano 24h */}
-          {events.map((ev) => (
-            <Marker key={`e-${ev.id}`} position={[ev._lat, ev._lng]} icon={eventIcon}>
-              <Popup>
-                <div style={{ minWidth: 180 }}>
-                  <b>{ev.location || "Događaj"}</b><br />
-                  Distanca: {ev.distance_km ?? "—"} km<br />
-                  Status: {ev.status || "planned"}<br />
-                  <Link to={`/run-events/${ev.id}`}>Otvori detalj</Link>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
+         
         </MapContainer>
       </div>
 

@@ -65,32 +65,8 @@ export default function RunEventsTable() {
       hour: "2-digit",
       minute: "2-digit",
     });
-  };
-
-  const canDelete = (ev) => {
-    if (!me) return false;
-    return me.role === "admin" || Number(ev.organizer_id) === Number(me.id);
-  };
-
-  async function deleteEvent(ev) {
-    if (!canDelete(ev)) return;
-    const ok = window.confirm(
-      `Obrisati događaj #${ev.id}? Ovo će obrisati i komentare, učesnike i statistiku povezanu sa događajem.`
-    );
-    if (!ok) return;
-
-    try {
-      await api.delete(`/api/run-events/${ev.id}`);
-      // 1) ukloni iz tabele
-      setItems((prev) => prev.filter((x) => x.id !== ev.id));
-      // 2) ažuriraj meta.total bez referenci na nepostojeće promenljive
-      setMeta((m) =>
-        m ? { ...m, total: Math.max(0, (m.total ?? 0) - 1) } : m
-      );
-    } catch {
-      alert("Brisanje nije uspelo.");
-    }
-  }
+  }; 
+ 
 
   return (
     <main className="hp" style={{ padding: 24 }}>
@@ -146,17 +122,7 @@ export default function RunEventsTable() {
                       <td style={{ ...td, whiteSpace: "nowrap" }}>
                         <Link className="link" to={`/run-events/${e.id}`} style={{ marginRight: 10 }}>
                           Detalj
-                        </Link>
-                        {canDelete(e) && (
-                          <button
-                            className="btn btn--tiny"
-                            style={{ background: "#311", borderColor: "#522", color: "#f8d7da" }}
-                            onClick={() => deleteEvent(e)}
-                            title="Obriši događaj"
-                          >
-                            Obriši
-                          </button>
-                        )}
+                        </Link> 
                       </td>
                     </tr>
                   ))

@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        // users: poslednja poznata lokacija
+ 
         Schema::table('users', function (Blueprint $t) {
             $t->decimal('last_lat', 10, 7)->nullable()->after('remember_token');
             $t->decimal('last_lng', 10, 7)->nullable()->after('last_lat');
